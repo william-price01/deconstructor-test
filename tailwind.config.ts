@@ -8,6 +8,9 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        serif: ["var(--font-noto-serif)", "ui-serif"],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
