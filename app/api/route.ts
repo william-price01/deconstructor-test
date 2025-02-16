@@ -3,11 +3,8 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 
-import { openai } from "@ai-sdk/openai";
-
 const openrouter = createOpenRouter({
-  apiKey:
-    "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",
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 // Define the schema for word parts and combinations
@@ -51,9 +48,11 @@ export async function POST(req: Request) {
     }
 
     const result = await generateObject({
-      // model: openrouter("google/gemini-2.0-flash-exp:free"),
-      model: openai("gpt-4o"),
-      system: `You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology.
+      model: openrouter("google/gemini-2.0-flash-exp:free"),
+      // model: openai("gpt-4o"),
+      system: `You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology. Create multiple layers of combinations to form the final meaning of the word.
+
+
 Here's an example for the word "deconstructor":
 {
   "parts": [
@@ -91,6 +90,118 @@ Here's an example for the word "deconstructor":
       "text": "deconstructor",
       "definition": "one who takes apart or analyzes the construction of something",
       "sourceIds": ["de", "constructor"]
+    }
+  ]
+}
+  
+
+Here's an example for the word "pneumonoultramicroscopicsilicovolcanoconiosis":
+{
+  "parts": [
+    {
+      "id": "pneumono",
+      "text": "pneumono",
+      "originalWord": "pneumon",
+      "origin": "Greek",
+      "meaning": "lung"
+    },
+    {
+      "id": "ultra",
+      "text": "ultra",
+      "originalWord": "ultra",
+      "origin": "Latin",
+      "meaning": "beyond"
+    },
+    {
+      "id": "micro",
+      "text": "micro",
+      "originalWord": "mikros",
+      "origin": "Greek",
+      "meaning": "small"
+    },
+    {
+      "id": "scopic",
+      "text": "scopic",
+      "originalWord": "skopein",
+      "origin": "Greek",
+      "meaning": "to look or examine"
+    },
+    {
+      "id": "silico",
+      "text": "silico",
+      "originalWord": "silicon",
+      "origin": "Latin",
+      "meaning": "silicon, a chemical element"
+    },
+    {
+      "id": "volcano",
+      "text": "volcano",
+      "originalWord": "volcanus",
+      "origin": "Latin",
+      "meaning": "volcano"
+    },
+    {
+      "id": "coni",
+      "text": "coni",
+      "originalWord": "konis",
+      "origin": "Greek",
+      "meaning": "dust"
+    },
+    {
+      "id": "osis",
+      "text": "osis",
+      "originalWord": "-osis",
+      "origin": "Greek",
+      "meaning": "condition or disease"
+    }
+  ],
+  "combinations": [
+    {
+      "id": "microscopic",
+      "text": "microscopic",
+      "definition": "so small as to be visible only with a microscope",
+      "sourceIds": [
+        "micro",
+        "scopic"
+      ]
+    },
+    {
+      "id": "silicovolcano",
+      "text": "silicovolcano",
+      "definition": "relating to silicon and volcanoes",
+      "sourceIds": [
+        "silico",
+        "volcano"
+      ]
+    },
+    {
+      "id": "coniosis",
+      "text": "coniosis",
+      "definition": "a condition or disease caused by dust",
+      "sourceIds": [
+        "coni",
+        "osis"
+      ]
+    },
+    {
+      "id": "pneumonoultramicroscopic",
+      "text": "pneumonoultramicroscopic",
+      "definition": "relating to the lungs and extremely small particles",
+      "sourceIds": [
+        "pneumono",
+        "ultra",
+        "microscopic"
+      ]
+    },
+    {
+      "id": "pneumonoultramicroscopicsilicovolcanoconiosis",
+      "text": "pneumonoultramicroscopicsilicovolcanoconiosis",
+      "definition": "a lung disease caused by inhaling very fine silicate or volcanic dust",
+      "sourceIds": [        
+        "pneumonoultramicroscopic",
+        "silicovolcano",
+        "coniosis"
+      ]
     }
   ]
 }`,

@@ -19,3 +19,9 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.react-flow__edge-path {
+  transition: opacity 1000ms, filter 1000ms;
+  opacity: calc(1 - var(--loading-state));
+  filter: blur(calc(var(--loading-state) * 20px));
+}

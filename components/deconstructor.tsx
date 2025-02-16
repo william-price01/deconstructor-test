@@ -7,22 +7,19 @@ import {
   type Node,
   Position,
   ReactFlowProvider,
+  useReactFlow,
+  useNodesInitialized,
+  useNodesState,
+  useEdgesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useState } from "react";
-// import { wordSchema } from "@/app/api/route";
-// import { z } from "zod";
-import Dagre from "@dagrejs/dagre";
-import { getTextWidth } from "@/utils/text-width";
+import { useEffect, useState, useMemo } from "react";
+import { wordSchema } from "@/app/api/route";
+import { z } from "zod";
+import { atom, useAtom } from "jotai";
+import Spinner from "./spinner";
 
-type WordPart = {
-  id: string;
-  text: string;
-  width: number;
-  originalWord: string;
-  origin: string;
-  meaning: string;
-};
+const isLoadingAtom = atom(false);
 
 type Combination = {
   id: string;
@@ -31,253 +28,326 @@ type Combination = {
   sourceIds: string[];
 };
 
-const WordChunkNode = ({ data }: { data: { text: string; width: number } }) => (
-  <div className="flex flex-col items-center">
-    <div className="text-5xl font-serif mb-1">{data.text}</div>
-    <div className="w-full h-3 border border-t-0 border-white" />
-    <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-  </div>
-);
+const WordChunkNode = ({ data }: { data: { text: string } }) => {
+  const [isLoading] = useAtom(isLoadingAtom);
+  return (
+    <div
+      className={`flex flex-col items-center transition-all duration-1000 ${
+        isLoading ? "opacity-0 blur-[20px]" : ""
+      }`}
+    >
+      <div className="text-5xl font-serif mb-1">{data.text}</div>
+      <div className="w-full h-3 border border-t-0 border-white" />
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    </div>
+  );
+};
 
 const OriginNode = ({
   data,
 }: {
   data: { originalWord: string; origin: string; meaning: string };
-}) => (
-  <div className="px-4 py-2 rounded-lg bg-gray-800/50 border border-gray-700/50 max-w-[180px]">
-    <p className="text-lg font-serif mb-1">{data.originalWord}</p>
-    <p className="text-xs text-gray-400">{data.origin}</p>
-    <p className="text-xs text-gray-300">{data.meaning}</p>
-    <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-    <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-  </div>
-);
+}) => {
+  const [isLoading] = useAtom(isLoadingAtom);
+  return (
+    <div
+      className={`flex flex-col items-stretch transition-all duration-1000 ${
+        isLoading ? "opacity-0 blur-[20px]" : ""
+      }`}
+    >
+      <div className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-700/50 min-w-fit max-w-[180px]">
+        <div className="flex flex-col items-start">
+          <p className="text-lg font-serif mb-1 whitespace-nowrap">
+            {data.originalWord}
+          </p>
+          <p className="text-xs text-gray-400 w-full">{data.origin}</p>
+          <p className="text-xs text-gray-300 w-full">{data.meaning}</p>
+        </div>
+      </div>
+      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    </div>
+  );
+};
 
 const CombinedNode = ({
   data,
 }: {
   data: { text: string; definition: string };
-}) => (
-  <div className="px-4 py-2 rounded-lg bg-gray-800/50 border border-gray-700/50 max-w-[250px]">
-    <p className="text-xl font-serif mb-1">{data.text}</p>
-    <p className="text-sm text-gray-300">{data.definition}</p>
-    <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-    <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-  </div>
-);
+}) => {
+  const [isLoading] = useAtom(isLoadingAtom);
+  return (
+    <div
+      className={`flex flex-col items-stretch transition-all duration-1000 ${
+        isLoading ? "opacity-0 blur-[20px]" : ""
+      }`}
+    >
+      <div className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-700/50 min-w-fit max-w-[250px]">
+        <div className="flex flex-col items-start">
+          <p className="text-xl font-serif mb-1 whitespace-nowrap">
+            {data.text}
+          </p>
+          <p className="text-sm text-gray-300 w-full">{data.definition}</p>
+        </div>
+      </div>
+      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    </div>
+  );
+};
 
 const InputNode = ({
   data,
 }: {
-  data: { onSubmit: (word: string) => void };
+  data: { onSubmit: (word: string) => Promise<void> };
 }) => {
   const [word, setWord] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!word.trim()) return;
 
     setIsLoading(true);
-    await data.onSubmit(word);
+    await Promise.all([
+      data.onSubmit(word),
+      new Promise((resolve) => setTimeout(resolve, 1000)),
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
     setIsLoading(false);
   };
 
   return (
-    <div className="px-6 py-4 rounded-xl bg-gray-800/80 border border-gray-700/50 backdrop-blur-sm shadow-xl min-w-[300px]">
-      <form onSubmit={handleSubmit} className="flex gap-3">
-        <input
-          type="text"
-          value={word}
-          onChange={(e) => setWord(e.target.value)}
-          placeholder="Enter a word..."
-          className="flex-1 px-3 py-2 rounded-lg bg-gray-900/50 border border-gray-700/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 transition-colors"
-        >
-          {isLoading ? "..." : "Analyze"}
-        </button>
-      </form>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-    </div>
+    <form
+      className="px-6 py-4 rounded-xl bg-gray-800/80 border border-gray-700/50 shadow-xl flex gap-3"
+      onSubmit={handleSubmit}
+    >
+      <input
+        type="text"
+        value={word}
+        onChange={(e) => setWord(e.target.value)}
+        placeholder="Enter a word..."
+        className="flex-1 px-3 py-2 rounded-lg bg-gray-900/50 border border-gray-700/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        disabled={isLoading}
+      />
+      <button
+        type="submit"
+        disabled={isLoading}
+        className={`w-[100px] px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 transition-colors flex items-center justify-center ${
+          isLoading ? "cursor-not-allowed" : ""
+        }`}
+      >
+        {isLoading ? <Spinner /> : "Analyze"}
+      </button>
+      {/* <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} /> */}
+    </form>
   );
 };
 
-const getLayoutedElements = (
-  nodes: Node[],
-  edges: Edge[],
-  options: unknown
-) => {
-  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: options.direction });
+const wordChunkPadding = 3;
+const originPadding = 10;
+const verticalSpacing = 50;
 
-  edges.forEach((edge) => g.setEdge(edge.source, edge.target));
-  nodes.forEach((node) =>
-    g.setNode(node.id, {
-      ...node,
-      width: node.measured?.width ?? 0,
-      height: node.measured?.height ?? 0,
-    })
-  );
+function getLayoutedElements(nodes: Node[], edges: Edge[]) {
+  const newNodes: Node[] = [];
+  console.log("layouting nodes", nodes);
 
-  Dagre.layout(g);
+  let inputWidth = 0;
+  let nextY = 0;
 
-  return {
-    nodes: nodes.map((node) => {
-      const position = g.node(node.id);
-      // We are shifting the dagre node position (anchor=center center) to the top left
-      // so it matches the React Flow node anchor point (top left).
-      const x = position.x - (node.measured?.width ?? 0) / 2;
-      const y = position.y - (node.measured?.height ?? 0) / 2;
-
-      return { ...node, position: { x, y } };
-    }),
-    edges,
-  };
-};
-
-export default function WordDeconstructor() {
-  const [definition, setDefinition] = useState({
-    parts: [
-      {
-        id: "de",
-        text: "de",
-        originalWord: "de-",
-        origin: "Latin",
-        meaning: "down, off, away",
-      },
-      {
-        id: "construc",
-        text: "construc",
-        originalWord: "construere",
-        origin: "Latin",
-        meaning: "to build, to pile up",
-      },
-      {
-        id: "tor",
-        text: "tor",
-        originalWord: "-or",
-        origin: "Latin",
-        meaning: "agent noun, one who does an action",
-      },
-    ],
-    combinations: [
-      {
-        id: "constructor",
-        text: "constructor",
-        definition: "one who constructs or builds",
-        sourceIds: ["construc", "tor"],
-      },
-      {
-        id: "deconstructor",
-        text: "deconstructor",
-        definition:
-          "one who takes apart or analyzes the construction of something",
-        sourceIds: ["de", "constructor"],
-      },
-    ],
+  nodes.forEach((node) => {
+    if (node.type === "inputNode") {
+      inputWidth = node.measured?.width ?? 0;
+      nextY = (node.measured?.height ?? 0) + verticalSpacing;
+    }
   });
 
-  const handleWordSubmit = async (word: string) => {
-    try {
-      const response = await fetch("/api", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ word }),
-      });
+  newNodes.push({
+    ...nodes.find((node) => node.type === "inputNode")!,
+    position: { x: -inputWidth / 2, y: 0 },
+  });
 
-      const data = await response.json();
-      if (response.ok) {
-        setDefinition(data);
-      } else {
-        console.error("Error:", data.error);
-      }
-    } catch (error) {
-      console.error("Failed to fetch:", error);
+  let totalWordChunkWidth = 0;
+
+  // First pass: measure word chunks
+  nodes.forEach((node) => {
+    if (node.type === "wordChunk") {
+      totalWordChunkWidth += (node.measured?.width ?? 0) + wordChunkPadding;
     }
-  };
+  });
 
+  // Position word chunks
+  let lastWordChunkX = 0;
+  nodes.forEach((node) => {
+    if (node.type === "wordChunk") {
+      newNodes.push({
+        ...node,
+        position: {
+          x: -totalWordChunkWidth / 2 + lastWordChunkX,
+          y: nextY,
+        },
+      });
+      lastWordChunkX += (node.measured?.width ?? 0) + wordChunkPadding;
+    }
+  });
+
+  nextY +=
+    verticalSpacing +
+    (nodes.find((node) => node.type === "wordChunk")?.measured?.height ?? 0);
+
+  // Position origins
+  let totalOriginWidth = 0;
+  nodes.forEach((node) => {
+    if (node.type === "origin") {
+      totalOriginWidth += (node.measured?.width ?? 0) + originPadding;
+    }
+  });
+
+  let lastOriginX = 0;
+  nodes.forEach((node) => {
+    if (node.type === "origin") {
+      newNodes.push({
+        ...node,
+        position: {
+          x: -totalOriginWidth / 2 + lastOriginX,
+          y: nextY,
+        },
+      });
+      lastOriginX += (node.measured?.width ?? 0) + originPadding;
+    }
+  });
+
+  nextY +=
+    verticalSpacing +
+    (nodes.find((node) => node.type === "origin")?.measured?.height ?? 0);
+
+  // Position combinations by layer
+  const combinationsByY = new Map<number, Node[]>();
+  nodes.forEach((node) => {
+    if (node.type === "combined") {
+      const layer = node.position.y / verticalSpacing - 2; // Convert y back to layer number
+      if (!combinationsByY.has(layer)) {
+        combinationsByY.set(layer, []);
+      }
+      combinationsByY.get(layer)!.push(node);
+    }
+  });
+
+  // Layout each layer of combinations
+  const sortedLayers = Array.from(combinationsByY.keys()).sort((a, b) => a - b);
+  sortedLayers.forEach((layer) => {
+    const layerNodes = combinationsByY.get(layer)!;
+    let totalWidth = 0;
+    layerNodes.forEach((node) => {
+      totalWidth += (node.measured?.width ?? 0) + originPadding;
+    });
+
+    let lastX = 0;
+    layerNodes.forEach((node) => {
+      newNodes.push({
+        ...node,
+        position: {
+          x: -totalWidth / 2 + lastX,
+          y: nextY,
+        },
+      });
+      lastX += (node.measured?.width ?? 0) + originPadding;
+    });
+    nextY += verticalSpacing + (layerNodes[0]?.measured?.height ?? 0);
+  });
+
+  return { nodes: newNodes, edges };
+}
+
+// interface Definition {
+//   parts: {
+//     id: string;
+//     text: string;
+//     originalWord: string;
+//     origin: string;
+//     meaning: string;
+//   }[];
+//   combinations: {
+//     id: string;
+//     text: string;
+//     definition: string;
+//     sourceIds: string[];
+//   }[];
+// }
+
+type Definition = z.infer<typeof wordSchema>;
+
+const defaultDefinition: Definition = {
+  parts: [
+    {
+      id: "de",
+      text: "de",
+      originalWord: "de-",
+      origin: "Latin",
+      meaning: "down, off, away",
+    },
+    {
+      id: "construc",
+      text: "construc",
+      originalWord: "construere",
+      origin: "Latin",
+      meaning: "to build, to pile up",
+    },
+    {
+      id: "tor",
+      text: "tor",
+      originalWord: "-or",
+      origin: "Latin",
+      meaning: "agent noun, one who does an action",
+    },
+  ],
+  combinations: [
+    {
+      id: "constructor",
+      text: "constructor",
+      definition: "one who constructs or builds",
+      sourceIds: ["construc", "tor"],
+    },
+    {
+      id: "deconstructor",
+      text: "deconstructor",
+      definition:
+        "one who takes apart or analyzes the construction of something",
+      sourceIds: ["de", "constructor"],
+    },
+  ],
+};
+
+function createInitialNodes(
+  definition: Definition,
+  handleWordSubmit: (word: string) => void
+) {
   const initialNodes: Node[] = [];
   const initialEdges: Edge[] = [];
 
-  const BASE_FONT_SIZE = 48;
-  const BASE_CHAR_WIDTH = BASE_FONT_SIZE * 0.6;
-
-  // Calculate widths based on content
-  const parts: WordPart[] = definition.parts.map((part) => ({
-    ...part,
-    width: getTextWidth(part.text, "normal 3rem 'Noto Serif'"),
-  }));
-
-  // Calculate node dimensions based on content
-  const maxOriginWordLength = Math.max(
-    ...parts.map(
-      (p) => p.originalWord.length + p.origin.length + p.meaning.length
-    )
-  );
-  const originNodeWidth = maxOriginWordLength * (BASE_CHAR_WIDTH * 0.3);
-  const maxCombinedWidth = Math.max(
-    ...definition.combinations.map((c) =>
-      Math.max(
-        c.text.length * BASE_CHAR_WIDTH,
-        c.definition.length * (BASE_CHAR_WIDTH * 0.25)
-      )
-    )
-  );
-
-  // Spacing calculations
-  const wordScale = 0.73; // Scale factor for word chunks
-  const wordHorizontalSpacing = BASE_CHAR_WIDTH * 0.5; // Increased from 0.1 to 0.5
-  const verticalSpacing = BASE_FONT_SIZE * 2.5;
-
-  // Calculate total width including spacing between word chunks
-  const totalWordWidth =
-    parts.reduce(
-      (sum, part) => sum + part.width * wordScale + wordHorizontalSpacing,
-      0
-    ) - wordHorizontalSpacing;
-
-  const startX = -totalWordWidth / 2;
-  let currentX = startX;
-
-  // Y-position calculations
-  const wordY = -verticalSpacing * 1.5;
-  const originY = wordY + verticalSpacing;
-
-  // Add input node at the top
   initialNodes.push({
-    id: "input",
-    type: "input",
-    position: { x: -150, y: -verticalSpacing * 2.5 },
+    id: "input1",
+    type: "inputNode",
+    position: { x: 0, y: 0 },
     data: { onSubmit: handleWordSubmit },
   });
 
   // Add word parts and their origins
-  parts.forEach((part) => {
+  definition.parts.forEach((part) => {
     // Word chunk node
     initialNodes.push({
       id: part.id,
       type: "wordChunk",
-      position: { x: currentX, y: wordY },
-      data: { text: part.text, width: part.width * wordScale },
+      position: { x: 0, y: 0 },
+      data: { text: part.text },
     });
 
     // Origin node - position relative to word chunk width
-    const originCenterX = currentX + (part.width * wordScale) / 2;
     const originId = `origin-${part.id}`;
     initialNodes.push({
       id: originId,
       type: "origin",
-      position: {
-        x: originCenterX - originNodeWidth / 2,
-        y: originY,
-      },
+      position: { x: 0, y: 0 },
       data: {
         originalWord: part.originalWord,
         origin: part.origin,
@@ -294,11 +364,9 @@ export default function WordDeconstructor() {
       style: { stroke: "#4B5563", strokeWidth: 1 },
       animated: true,
     });
-
-    currentX += part.width * wordScale + wordHorizontalSpacing;
   });
 
-  // Add combinations in layers
+  // Add combinations
   const combinationsByLayer = new Map<number, Combination[]>();
 
   // Helper to get a node's layer (recursive)
@@ -306,7 +374,7 @@ export default function WordDeconstructor() {
     nodeId: string,
     visited = new Set<string>()
   ): number => {
-    if (visited.has(nodeId)) return 0; // Prevent cycles
+    if (visited.has(nodeId)) return 0;
     visited.add(nodeId);
 
     const combination = definition.combinations.find((c) => c.id === nodeId);
@@ -329,29 +397,26 @@ export default function WordDeconstructor() {
 
   // Add combination nodes layer by layer
   const layers = Array.from(combinationsByLayer.keys()).sort((a, b) => a - b);
-  layers.forEach((layer, layerIndex) => {
+  layers.forEach((layer) => {
     const combinations = combinationsByLayer.get(layer)!;
-    const y = originY + verticalSpacing * (layerIndex + 1.5);
+    const y = (layer + 2) * verticalSpacing; // +2 to leave space for word chunks and origins
 
-    combinations.forEach((combination) => {
-      const x = -maxCombinedWidth / 2;
-
+    combinations.forEach((combination, index) => {
       // Add combination node
       initialNodes.push({
         id: combination.id,
         type: "combined",
-        position: { x, y },
+        position: { x: 0, y }, // x will be set by layout function
         data: {
           text: combination.text,
           definition: combination.definition,
         },
       });
 
-      // Add edges from all sources - now using the correct source nodes
+      // Add edges from all sources
       combination.sourceIds.forEach((sourceId) => {
-        // Find if this source is a word part
-        const isPart = parts.find((p) => p.id === sourceId);
-        // If it's a part, connect from its origin node, otherwise connect from the combination directly
+        // If source is a word part, connect from its origin node
+        const isPart = definition.parts.find((p) => p.id === sourceId);
         const actualSourceId = isPart ? `origin-${sourceId}` : sourceId;
 
         initialEdges.push({
@@ -366,44 +431,93 @@ export default function WordDeconstructor() {
     });
   });
 
-  const nodeTypes = {
-    wordChunk: WordChunkNode,
-    origin: OriginNode,
-    combined: CombinedNode,
-    input: InputNode,
+  return { initialNodes, initialEdges };
+}
+
+const nodeTypes = {
+  wordChunk: WordChunkNode,
+  origin: OriginNode,
+  combined: CombinedNode,
+  inputNode: InputNode,
+};
+
+function Deconstructor() {
+  const [definition, setDefinition] = useState<Definition>(defaultDefinition);
+
+  const handleWordSubmit = async (word: string) => {
+    console.log("handleWordSubmit", word);
+    const data = await fetch("/api", {
+      method: "POST",
+      body: JSON.stringify({ word }),
+    });
+    const newDefinition = (await data.json()) as Definition;
+    console.log("newDefinition", newDefinition);
+    console.log(JSON.stringify(newDefinition, null, 2));
+    setDefinition(newDefinition);
   };
 
+  const { initialNodes, initialEdges } = useMemo(
+    () => createInitialNodes(definition, handleWordSubmit),
+    [definition]
+  );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const { fitView } = useReactFlow();
+  const nodesInitialized = useNodesInitialized({ includeHiddenNodes: false });
+
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges]);
+
+  useEffect(() => {
+    console.log("nodesInitialized", nodesInitialized);
+    if (nodesInitialized) {
+      const { nodes: layoutedNodes, edges: layoutedEdges } =
+        getLayoutedElements(nodes, edges);
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+    }
+  }, [nodesInitialized]);
+
+  useEffect(() => {
+    console.log("detected nodes change", nodes);
+    fitView({
+      duration: 1000,
+    });
+  }, [nodes]);
+
+  console.log(nodes);
+
   return (
-    <div className="h-screen bg-gray-900 text-gray-100">
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      nodeTypes={nodeTypes}
+      className="bg-gray-900"
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background color="#333" />
+    </ReactFlow>
+  );
+}
+
+export default function WordDeconstructor() {
+  const [isLoading] = useAtom(isLoadingAtom);
+
+  return (
+    <div
+      className="h-screen bg-gray-900 text-gray-100"
+      style={
+        { "--loading-state": isLoading ? "1" : "0" } as React.CSSProperties
+      }
+    >
       <div className="h-full w-full">
         <ReactFlowProvider>
-          <ReactFlow
-            nodes={initialNodes}
-            edges={initialEdges}
-            nodeTypes={nodeTypes}
-            fitView
-            fitViewOptions={{
-              padding: 0.2,
-              // minZoom: 0.5,
-              // maxZoom: 1.2,
-            }}
-            className="bg-gray-900"
-            // minZoom={0.2}
-            // maxZoom={1.5}
-            // minZoom={1}
-            // maxZoom={1}
-            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            // elementsSelectable={false}
-            proOptions={{ hideAttribution: true }}
-            // panOnScroll={false}
-            // panOnDrag={false}
-            // zoomOnScroll={false}
-            preventScrolling={true}
-          >
-            <Background color="#333" />
-          </ReactFlow>
+          <Deconstructor />
         </ReactFlowProvider>
       </div>
     </div>
