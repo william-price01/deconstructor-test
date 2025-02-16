@@ -18,6 +18,7 @@ import { wordSchema } from "@/utils/schema";
 import { z } from "zod";
 import { atom, useAtom } from "jotai";
 import Spinner from "./spinner";
+import { toast } from "sonner";
 
 const isLoadingAtom = atom(false);
 
@@ -446,14 +447,23 @@ function Deconstructor() {
 
   const handleWordSubmit = async (word: string) => {
     console.log("handleWordSubmit", word);
-    const data = await fetch("/api", {
-      method: "POST",
-      body: JSON.stringify({ word }),
-    });
-    const newDefinition = (await data.json()) as Definition;
-    console.log("newDefinition", newDefinition);
-    console.log(JSON.stringify(newDefinition, null, 2));
-    setDefinition(newDefinition);
+    try {
+      const data = await fetch("/api", {
+        method: "POST",
+        body: JSON.stringify({ word }),
+      });
+      if (!data.ok) {
+        throw new Error(await data.text());
+      }
+      const newDefinition = (await data.json()) as Definition;
+      console.log("newDefinition", newDefinition);
+      console.log(JSON.stringify(newDefinition, null, 2));
+
+      setDefinition(newDefinition);
+    } catch {
+      // console.error("Error fetching definition", error);
+      toast.error("Error fetching definition. Try a different word.");
+    }
   };
 
   const { initialNodes, initialEdges } = useMemo(

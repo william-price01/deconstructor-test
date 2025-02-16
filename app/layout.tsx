@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Serif } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const notoSerif = Noto_Serif({
@@ -24,7 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${notoSerif.className} antialiased`}>{children}</body>
+      <body className={`${notoSerif.className} antialiased dark`}>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }
