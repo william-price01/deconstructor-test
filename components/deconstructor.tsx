@@ -462,7 +462,7 @@ function Deconstructor() {
       setDefinition(newDefinition);
     } catch {
       // console.error("Error fetching definition", error);
-      toast.error("Error fetching definition. Try a different word.");
+      toast.error("The AI doesn't like that one! Try a different word.");
     }
   };
 
