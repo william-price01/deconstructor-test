@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Word Deconstructor
+
+A beautiful and interactive web application that deconstructs words into their meaningful parts and explains their etymology. Built with Next.js, React Flow, and powered by AI.
+
+## Features
+
+- 🔍 Interactive word analysis
+- 🌳 Beautiful visualization of word components using React Flow
+- 📚 Detailed etymology and meaning breakdowns
+- 🎨 Dark mode
+- ⚡ Real-time updates and animations
+- 🧠 AI-powered word deconstruction using OpenRouter API
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Node.js 18+ installed
+- An OpenRouter API key (get one at [OpenRouter](https://openrouter.ai))
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+git clone https://github.com/hyusap/deconstructor.git
+cd deconstructor
+```
+
+2. Install dependencies:
+
+```bash
+bun install
+```
+
+3. Set up environment variables:
+
+```bash
+cp example.env .env.local
+```
+
+Then edit `.env.local` and add your OpenRouter API key.
+
+4. Run the development server:
+
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How It Works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The Word Deconstructor breaks down words into their constituent parts:
 
-## Learn More
+1. Enter any word in the input field
+2. The AI analyzes the word's etymology and components
+3. A beautiful graph visualization shows:
+   - Individual word parts
+   - Their origins (Latin, Greek, etc.)
+   - Meanings of each component
+   - How components combine to form the full word
 
-To learn more about Next.js, take a look at the following resources:
+## Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Next.js](https://nextjs.org/) - React framework
+- [React Flow](https://reactflow.dev/) - Graph visualization
+- [Tailwind CSS](https://tailwindcss.com/) - Styling
+- [OpenRouter AI](https://openrouter.ai/) - AI-powered word analysis
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- [Jotai](https://jotai.org/) - State management
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contributing
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Contributions are welcome! Please feel free to submit a Pull Request.
