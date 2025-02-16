@@ -1,11 +1,11 @@
 import { generateObject } from "ai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+// import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { wordSchema } from "@/utils/schema";
 import { NextResponse } from "next/server";
-
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+import { openai } from "@ai-sdk/openai";
+// const openrouter = createOpenRouter({
+//   apiKey: process.env.OPENROUTER_API_KEY,
+// });
 
 // Define the schema for word parts and combinations
 
@@ -21,8 +21,8 @@ export async function POST(req: Request) {
     }
 
     const result = await generateObject({
-      model: openrouter("google/gemini-2.0-flash-exp:free"),
-      // model: openai("gpt-4o"),
+      // model: openrouter("google/gemini-2.0-flash-exp:free"),
+      model: openai("gpt-4o-mini"),
       system: `You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology. Create multiple layers of combinations to form the final meaning of the word.
 
 
