@@ -12,6 +12,7 @@
     "@ai-sdk/openai": "^1.1.5",
     "@dagrejs/dagre": "^1.1.4",
     "@openrouter/ai-sdk-provider": "^0.0.6",
+    "@radix-ui/react-slot": "^1.1.2",
     "@xyflow/react": "^12.4.2",
     "add": "^2.0.6",
     "ai": "^4.1.11",

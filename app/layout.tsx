@@ -3,6 +3,7 @@ import { Noto_Serif } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import PlausibleProvider from "next-plausible";
+import Outbound from "@/components/outbound";
 
 const notoSerif = Noto_Serif({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${notoSerif.className} antialiased dark`}>
+        <Outbound />
         {children}
         <Toaster />
       </body>
