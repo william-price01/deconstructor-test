@@ -19,6 +19,7 @@ import { z } from "zod";
 import { atom, useAtom } from "jotai";
 import Spinner from "./spinner";
 import { toast } from "sonner";
+import { usePlausible } from "next-plausible";
 
 const isLoadingAtom = atom(false);
 
@@ -444,7 +445,7 @@ const nodeTypes = {
 
 function Deconstructor() {
   const [definition, setDefinition] = useState<Definition>(defaultDefinition);
-
+  const plausible = usePlausible();
   const handleWordSubmit = async (word: string) => {
     console.log("handleWordSubmit", word);
     try {
@@ -458,9 +459,19 @@ function Deconstructor() {
       const newDefinition = (await data.json()) as Definition;
       console.log("newDefinition", newDefinition);
       console.log(JSON.stringify(newDefinition, null, 2));
+      plausible("deconstruct", {
+        props: {
+          word,
+        },
+      });
 
       setDefinition(newDefinition);
     } catch {
+      plausible("deconstruct_error", {
+        props: {
+          word,
+        },
+      });
       // console.error("Error fetching definition", error);
       toast.error("The AI doesn't like that one! Try a different word.");
     }

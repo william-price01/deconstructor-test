@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Serif } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+import PlausibleProvider from "next-plausible";
 
 const notoSerif = Noto_Serif({
   subsets: ["latin"],
@@ -25,6 +26,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <PlausibleProvider
+          domain="deconstructor.ayush.digital"
+          customDomain="https://a.ayush.digital"
+          trackOutboundLinks
+          selfHosted
+          taggedEvents
+        />
+      </head>
       <body className={`${notoSerif.className} antialiased dark`}>
         {children}
         <Toaster />
