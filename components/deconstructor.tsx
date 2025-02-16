@@ -14,7 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useState, useMemo } from "react";
-import { wordSchema } from "@/app/api/route";
+import { wordSchema } from "@/utils/schema";
 import { z } from "zod";
 import { atom, useAtom } from "jotai";
 import Spinner from "./spinner";
@@ -401,7 +401,7 @@ function createInitialNodes(
     const combinations = combinationsByLayer.get(layer)!;
     const y = (layer + 2) * verticalSpacing; // +2 to leave space for word chunks and origins
 
-    combinations.forEach((combination, index) => {
+    combinations.forEach((combination) => {
       // Add combination node
       initialNodes.push({
         id: combination.id,
