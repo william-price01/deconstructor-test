@@ -12,6 +12,8 @@ import { z } from "zod";
 
 type WordOutput = z.infer<typeof wordSchema>;
 
+export const maxDuration = 60;
+
 function validateWordParts(word: string, parts: WordOutput["parts"]): string[] {
   const errors: string[] = [];
   const combinedParts = parts.map((p) => p.text).join("");
