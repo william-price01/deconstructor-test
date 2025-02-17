@@ -301,8 +301,8 @@ Here's an example for the word "deconstructor":
       }
 
       // Simplify the DAG before returning
-      const simplifiedResult = simplifyDAG(result.object);
-      return NextResponse.json(simplifiedResult);
+      // const simplifiedResult = simplifyDAG(result.object);
+      return NextResponse.json(result.object);
     }
 
     // Return the last attempt anyway
