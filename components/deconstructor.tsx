@@ -154,20 +154,17 @@ function getLayoutedElements(nodes: Node[], edges: Edge[]) {
   const newNodes: Node[] = [];
   console.log("layouting nodes", nodes);
 
-  let inputWidth = 0;
-  let nextY = 0;
+  const inputNode = nodes.find((node) => node.type === "inputNode");
+  const inputWidth = inputNode?.measured?.width ?? 0;
+  const inputHeight = inputNode?.measured?.height ?? 0;
+  let nextY = inputHeight + verticalSpacing;
 
-  nodes.forEach((node) => {
-    if (node.type === "inputNode") {
-      inputWidth = node.measured?.width ?? 0;
-      nextY = (node.measured?.height ?? 0) + verticalSpacing;
-    }
-  });
-
-  newNodes.push({
-    ...nodes.find((node) => node.type === "inputNode")!,
-    position: { x: -inputWidth / 2, y: 0 },
-  });
+  if (inputNode) {
+    newNodes.push({
+      ...inputNode,
+      position: { x: -inputWidth / 2, y: 0 },
+    });
+  }
 
   let totalWordChunkWidth = 0;
 
@@ -221,7 +218,11 @@ function getLayoutedElements(nodes: Node[], edges: Edge[]) {
 
   nextY +=
     verticalSpacing +
-    (nodes.find((node) => node.type === "origin")?.measured?.height ?? 0);
+    Math.max(
+      ...nodes
+        .filter((node) => node.type === "origin")
+        .map((node) => node.measured?.height ?? 0)
+    );
 
   // Position combinations by layer
   const combinationsByY = new Map<number, Node[]>();
@@ -255,7 +256,9 @@ function getLayoutedElements(nodes: Node[], edges: Edge[]) {
       });
       lastX += (node.measured?.width ?? 0) + originPadding;
     });
-    nextY += verticalSpacing + (layerNodes[0]?.measured?.height ?? 0);
+    nextY +=
+      verticalSpacing +
+      Math.max(...layerNodes.map((node) => node.measured?.height ?? 0));
   });
 
   return { nodes: newNodes, edges };
@@ -304,19 +307,23 @@ const defaultDefinition: Definition = {
     },
   ],
   combinations: [
-    {
-      id: "constructor",
-      text: "constructor",
-      definition: "one who constructs or builds",
-      sourceIds: ["construc", "tor"],
-    },
-    {
-      id: "deconstructor",
-      text: "deconstructor",
-      definition:
-        "one who takes apart or analyzes the construction of something",
-      sourceIds: ["de", "constructor"],
-    },
+    [
+      {
+        id: "constructor",
+        text: "constructor",
+        definition: "one who constructs or builds",
+        sourceIds: ["construc", "tor"],
+      },
+    ],
+    [
+      {
+        id: "deconstructor",
+        text: "deconstructor",
+        definition:
+          "one who takes apart or analyzes the construction of something",
+        sourceIds: ["de", "constructor"],
+      },
+    ],
   ],
 };
 
@@ -368,47 +375,16 @@ function createInitialNodes(
     });
   });
 
-  // Add combinations
-  const combinationsByLayer = new Map<number, Combination[]>();
+  // Add combinations layer by layer
+  definition.combinations.forEach((layer, layerIndex) => {
+    const y = (layerIndex + 2) * verticalSpacing; // +2 to leave space for word chunks and origins
 
-  // Helper to get a node's layer (recursive)
-  const getNodeLayer = (
-    nodeId: string,
-    visited = new Set<string>()
-  ): number => {
-    if (visited.has(nodeId)) return 0;
-    visited.add(nodeId);
-
-    const combination = definition.combinations.find((c) => c.id === nodeId);
-    if (!combination) return 0; // It's a base part
-
-    const sourceLayers = combination.sourceIds.map((id) =>
-      getNodeLayer(id, visited)
-    );
-    return Math.max(...sourceLayers) + 1;
-  };
-
-  // Group combinations by layer
-  definition.combinations.forEach((combo) => {
-    const layer = getNodeLayer(combo.id);
-    if (!combinationsByLayer.has(layer)) {
-      combinationsByLayer.set(layer, []);
-    }
-    combinationsByLayer.get(layer)!.push(combo);
-  });
-
-  // Add combination nodes layer by layer
-  const layers = Array.from(combinationsByLayer.keys()).sort((a, b) => a - b);
-  layers.forEach((layer) => {
-    const combinations = combinationsByLayer.get(layer)!;
-    const y = (layer + 2) * verticalSpacing; // +2 to leave space for word chunks and origins
-
-    combinations.forEach((combination) => {
+    layer.forEach((combination) => {
       // Add combination node
       initialNodes.push({
         id: combination.id,
         type: "combined",
-        position: { x: 0, y }, // x will be set by layout function
+        position: { x: 0, y },
         data: {
           text: combination.text,
           definition: combination.definition,
@@ -455,6 +431,11 @@ function Deconstructor() {
       });
       if (!data.ok) {
         throw new Error(await data.text());
+      }
+      if (data.status === 203) {
+        toast.info(
+          "The AI had some issues, but here's what it came up with anyway."
+        );
       }
       const newDefinition = (await data.json()) as Definition;
       console.log("newDefinition", newDefinition);
