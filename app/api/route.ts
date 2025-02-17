@@ -16,7 +16,7 @@ function validateWordParts(word: string, parts: WordOutput["parts"]): string[] {
   const errors: string[] = [];
   const combinedParts = parts.map((p) => p.text).join("");
 
-  if (combinedParts.toLowerCase() !== word.toLowerCase()) {
+  if (combinedParts.toLowerCase() !== word.toLowerCase().replaceAll(" ", "")) {
     errors.push(
       `The parts "${combinedParts}" do not combine to form the word "${word}"`
     );
@@ -101,6 +101,85 @@ function validateCombinations(word: string, output: WordOutput): string[] {
   }
 
   return errors;
+}
+
+function simplifyDAG(output: WordOutput): WordOutput {
+  // Create a map of all nodes (parts and combinations) and their dependencies
+  const nodeMap = new Map<string, Set<string>>();
+
+  // Initialize with parts
+  output.parts.forEach((part) => {
+    nodeMap.set(part.id, new Set());
+  });
+
+  // Add combinations and their dependencies
+  output.combinations.forEach((layer) => {
+    layer.forEach((combo) => {
+      nodeMap.set(combo.id, new Set(combo.sourceIds));
+    });
+  });
+
+  // Function to get all dependencies recursively
+  function getAllDependencies(
+    id: string,
+    visited = new Set<string>()
+  ): Set<string> {
+    if (visited.has(id)) return new Set();
+    visited.add(id);
+
+    const deps = nodeMap.get(id) || new Set();
+    const allDeps = new Set(deps);
+
+    for (const dep of deps) {
+      const subDeps = getAllDependencies(dep, visited);
+      subDeps.forEach((d) => allDeps.add(d));
+    }
+
+    return allDeps;
+  }
+
+  // Create new optimized layers
+  type Combination = {
+    id: string;
+    text: string;
+    definition: string;
+    sourceIds: string[];
+  };
+  type Layer = [Combination, ...Combination[]];
+  const newCombinations: Layer[] = [];
+  const processed = new Set<string>();
+  const partsSet = new Set(output.parts.map((p) => p.id));
+
+  // Start with combinations that only depend on parts
+  let currentLayer = output.combinations
+    .flat()
+    .filter((combo) => combo.sourceIds.every((id) => partsSet.has(id)));
+
+  while (currentLayer.length > 0) {
+    // Ensure each layer has at least one combination
+    if (currentLayer.length > 0) {
+      newCombinations.push([currentLayer[0], ...currentLayer.slice(1)]);
+    }
+    currentLayer.forEach((combo) => processed.add(combo.id));
+
+    // Find next layer: combinations whose dependencies are all processed
+    currentLayer = output.combinations.flat().filter(
+      (combo) =>
+        !processed.has(combo.id) && // Not already processed
+        combo.sourceIds.every((id) => partsSet.has(id) || processed.has(id))
+    );
+  }
+
+  // If we have no combinations, add an empty layer to satisfy the type
+  if (newCombinations.length === 0 && output.combinations.length > 0) {
+    const emptyCombination = output.combinations[0][0];
+    newCombinations.push([emptyCombination]);
+  }
+
+  return {
+    ...output,
+    combinations: newCombinations as typeof output.combinations,
+  };
 }
 
 interface LastAttempt {
@@ -221,8 +300,9 @@ Here's an example for the word "deconstructor":
         continue;
       }
 
-      // If we reach here, all validations passed
-      return result.toJsonResponse();
+      // Simplify the DAG before returning
+      const simplifiedResult = simplifyDAG(result.object);
+      return NextResponse.json(simplifiedResult);
     }
 
     // Return the last attempt anyway
