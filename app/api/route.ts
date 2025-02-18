@@ -2,7 +2,8 @@ import { generateObject } from "ai";
 // import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { wordSchema } from "@/utils/schema";
 import { NextResponse } from "next/server";
-import { openai } from "@ai-sdk/openai";
+// import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { z } from "zod";
 // const openrouter = createOpenRouter({
 //   apiKey: process.env.OPENROUTER_API_KEY,
@@ -17,12 +18,41 @@ export const maxDuration = 60;
 function validateWordParts(word: string, parts: WordOutput["parts"]): string[] {
   const errors: string[] = [];
   const combinedParts = parts.map((p) => p.text).join("");
+  const commaSeparatedParts = parts.map((p) => p.text).join(", ");
 
   if (combinedParts.toLowerCase() !== word.toLowerCase().replaceAll(" ", "")) {
     errors.push(
-      `The parts "${combinedParts}" do not combine to form the word "${word}"`
+      `The parts "${commaSeparatedParts}" do not combine to form the word "${word}"`
     );
   }
+  return errors;
+}
+
+function validateUniqueIds(output: WordOutput): string[] {
+  const errors: string[] = [];
+  const seenIds = new Map<string, string>(); // id -> where it was found
+
+  // Check parts
+  output.parts.forEach((part) => {
+    seenIds.set(part.id, "parts");
+  });
+
+  // Check combinations
+  output.combinations.forEach((layer, layerIndex) => {
+    layer.forEach((combo) => {
+      if (seenIds.has(combo.id)) {
+        errors.push(
+          `ID "${combo.id}" in combinations layer ${
+            layerIndex + 1
+          } is already used in ${seenIds.get(
+            combo.id
+          )}. IDs must be unique across both parts and combinations.`
+        );
+      }
+      seenIds.set(combo.id, `combinations layer ${layerIndex + 1}`);
+    });
+  });
+
   return errors;
 }
 
@@ -225,23 +255,41 @@ Please fix all the issues and try again.`;
 
       console.log("prompt", prompt);
 
-      let model: string;
-      switch (attempts.length) {
-        case 0:
-          model = "gpt-4o-mini";
-          break;
-        default:
-          model = "gpt-4o";
-          break;
-      }
+      // let model: string;
+      // switch (attempts.length) {
+      //   case 0:
+      //     model = "gpt-4o-mini";
+      //     break;
+      //   default:
+      //     model = "gpt-4o";
+      //     break;
+      // }
 
       const result = await generateObject({
-        model: openai(model),
+        // model: openai(model),
+        model: google("gemini-2.0-pro-exp-02-05"),
         system: `You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology. Create multiple layers of combinations to form the final meaning of the word.
 
+Schema Requirements:
+- thought: Think about the word/phrase, it's origins, and how it's put together. Eg. if it's a name, think about where the name comes from, etc.
+- parts: An array of word parts that MUST combine to form the original word and be in the same order
+  - id: Lowercase identifier for the word part, no spaces. Must be unique. If the word has the same part multiple times, give each one a different id. Cannot repeat ids from the combinations.
+  - text: The actual text segment of the word part
+  - originalWord: The original word or affix this part comes from
+  - origin: Brief origin like "Latin", "Greek", "Old English"
+  - meaning: Concise meaning of this word part
+- combinations: A Directed Acyclic Graph (DAG) that forms the original word
+  - Each array represents a single layer of the DAG. If possible, keep the combinations in order of how they're used in the word within each layer.
+  - Each combination contains:
+    - id: Lowercase identifier for the combination. Must be unique. If the word has the same combination multiple times, give each one a different id. Cannot repeat ids from the parts.
+    - text: The combined text segments
+    - definition: Clear definition of the combined parts
+    - sourceIds: Array of ids of the parts or combinations that form this
+  - The last layer MUST only have one combination, which MUST be the original word
 
 Here's an example for the word "deconstructor":
 {
+  "thought": "..."
   "parts": [
     {
       "id": "de",
@@ -290,6 +338,7 @@ Here's an example for the word "deconstructor":
 
       const errors: string[] = [
         ...validateWordParts(word, result.object.parts),
+        ...validateUniqueIds(result.object),
         ...validateCombinations(word, result.object),
       ];
 

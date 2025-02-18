@@ -283,6 +283,7 @@ function getLayoutedElements(nodes: Node[], edges: Edge[]) {
 type Definition = z.infer<typeof wordSchema>;
 
 const defaultDefinition: Definition = {
+  thought: "",
   parts: [
     {
       id: "de",
