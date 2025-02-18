@@ -2,8 +2,8 @@ import { generateObject } from "ai";
 // import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { wordSchema } from "@/utils/schema";
 import { NextResponse } from "next/server";
-// import { openai } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
+// import { google } from "@ai-sdk/google";
 import { z } from "zod";
 // const openrouter = createOpenRouter({
 //   apiKey: process.env.OPENROUTER_API_KEY,
@@ -255,19 +255,19 @@ Please fix all the issues and try again.`;
 
       console.log("prompt", prompt);
 
-      // let model: string;
-      // switch (attempts.length) {
-      //   case 0:
-      //     model = "gpt-4o-mini";
-      //     break;
-      //   default:
-      //     model = "gpt-4o";
-      //     break;
-      // }
+      let model: string;
+      switch (attempts.length) {
+        case 0:
+          model = "gpt-4o-mini";
+          break;
+        default:
+          model = "gpt-4o";
+          break;
+      }
 
       const result = await generateObject({
-        // model: openai(model),
-        model: google("gemini-2.0-pro-exp-02-05"),
+        model: openai(model),
+        // model: google("gemini-2.0-pro-exp-02-05"),
         system: `You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology. Create multiple layers of combinations to form the final meaning of the word.
 
 Schema Requirements:
@@ -275,11 +275,11 @@ Schema Requirements:
 - parts: An array of word parts that MUST combine to form the original word and be in the same order
   - id: Lowercase identifier for the word part, no spaces. Must be unique. If the word has the same part multiple times, give each one a different id. Cannot repeat ids from the combinations.
   - text: The actual text segment of the word part
-  - originalWord: The original word or affix this part comes from
+  - originalWord: The original word or affix this part comes from. Use the ABSOLUTE oldest word or affix that this part comes from.
   - origin: Brief origin like "Latin", "Greek", "Old English"
   - meaning: Concise meaning of this word part
 - combinations: A Directed Acyclic Graph (DAG) that forms the original word
-  - Each array represents a single layer of the DAG. If possible, keep the combinations in order of how they're used in the word within each layer.
+  - Each array represents a single layer of the DAG. If possible, keep the combinations in order of how they're used in the word within each layer. Try to use many useful intermediate combinations. If a word's origin isn't modern english, conver it to english as a combination, then use that combination as a source for the next layer.
   - Each combination contains:
     - id: Lowercase identifier for the combination. Must be unique. If the word has the same combination multiple times, give each one a different id. Cannot repeat ids from the parts.
     - text: The combined text segments
