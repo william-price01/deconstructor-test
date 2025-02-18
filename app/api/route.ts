@@ -273,9 +273,9 @@ Please fix all the issues and try again.`;
 
 Schema Requirements:
 - thought: Think about the word/phrase, it's origins, and how it's put together. Eg. if it's a name, think about where the name comes from, etc.
-- parts: An array of word parts that MUST combine to form the original word and be in the same order
+- parts: An array of word parts. The text sections of the parts MUST combine to form the original word, nothing more, nothing less.
   - id: Lowercase identifier for the word part, no spaces. Must be unique. If the word has the same part multiple times, give each one a different id. Cannot repeat ids from the combinations.
-  - text: The actual text segment of the word part
+  - text: The EXACT section of the input word that this input part should be attached to. Be careful not to refernce the same letter multiple times across multiple parts.
   - originalWord: The original word or affix this part comes from. Use the ABSOLUTE oldest word or affix that this part comes from.
   - origin: Brief origin like "Latin", "Greek", "Old English"
   - meaning: Concise meaning of this word part

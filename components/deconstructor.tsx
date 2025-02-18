@@ -101,9 +101,9 @@ const CombinedNode = ({
 const InputNode = ({
   data,
 }: {
-  data: { onSubmit: (word: string) => Promise<void> };
+  data: { onSubmit: (word: string) => Promise<void>; initialWord?: string };
 }) => {
-  const [word, setWord] = useState("");
+  const [word, setWord] = useState(data.initialWord || "");
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -330,7 +330,8 @@ const defaultDefinition: Definition = {
 
 function createInitialNodes(
   definition: Definition,
-  handleWordSubmit: (word: string) => void
+  handleWordSubmit: (word: string) => void,
+  initialWord?: string
 ) {
   const initialNodes: Node[] = [];
   const initialEdges: Edge[] = [];
@@ -339,7 +340,7 @@ function createInitialNodes(
     id: "input1",
     type: "inputNode",
     position: { x: 0, y: 0 },
-    data: { onSubmit: handleWordSubmit },
+    data: { onSubmit: handleWordSubmit, initialWord },
   });
 
   // Add word parts and their origins
@@ -420,7 +421,9 @@ const nodeTypes = {
   inputNode: InputNode,
 };
 
-function Deconstructor() {
+function Deconstructor({ word }: { word?: string }) {
+  const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
+
   const [definition, setDefinition] = useState<Definition>(defaultDefinition);
   const plausible = usePlausible();
   const handleWordSubmit = async (word: string) => {
@@ -459,9 +462,20 @@ function Deconstructor() {
     }
   };
 
+  useEffect(() => {
+    async function fetchDefinition() {
+      if (word) {
+        setIsLoading(true);
+        await handleWordSubmit(word);
+        setIsLoading(false);
+      }
+    }
+    fetchDefinition();
+  }, [word]);
+
   const { initialNodes, initialEdges } = useMemo(
-    () => createInitialNodes(definition, handleWordSubmit),
-    [definition]
+    () => createInitialNodes(definition, handleWordSubmit, word),
+    [definition, word]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -508,7 +522,7 @@ function Deconstructor() {
   );
 }
 
-export default function WordDeconstructor() {
+export default function WordDeconstructor({ word }: { word?: string }) {
   const [isLoading] = useAtom(isLoadingAtom);
 
   return (
@@ -520,7 +534,7 @@ export default function WordDeconstructor() {
     >
       <div className="h-full w-full">
         <ReactFlowProvider>
-          <Deconstructor />
+          <Deconstructor word={word} />
         </ReactFlowProvider>
       </div>
     </div>
