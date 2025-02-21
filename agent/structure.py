@@ -70,7 +70,7 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        def event_handler(event, context):
+        def event_handler(event):
             try:
                 logger.debug(f"Event type: {type(event)}")
                 if hasattr(event, 'output') and hasattr(event.output, 'value'):
