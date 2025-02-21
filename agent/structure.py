@@ -11,7 +11,11 @@ from griptape.rules import Rule
 from griptape.drivers import GriptapeCloudEventListenerDriver
 from griptape.events import EventBus, EventListener
 
-
+#region Data Model
+"""
+Pydantic models defining the structure for word parts and combinations
+Used for type validation and JSON schema generation
+"""
 class WordPart(BaseModel):
     id: str = Field(description="Lowercase identifier, unique across parts and combinations")
     text: str = Field(description="Exact section of input word")
@@ -31,8 +35,14 @@ class WordOutput(BaseModel):
     thought: str = Field(description="Think about the word/phrase, it's origins, and how it's put together")
     parts: List[WordPart] = Field(description="Array of word parts that combine to form the word")
     combinations: List[List[Combination]] = Field(description="Layers of combinations forming a DAG to the final word")
+#endregion
 
-
+#region Environment Setup
+"""
+Functions for configuring the runtime environment
+Handles cloud vs local execution and API key management
+If this is running in Griptape Cloud, we will publish events to the event bus
+"""
 def is_running_in_managed_environment() -> bool:
     return "GT_CLOUD_STRUCTURE_RUN_ID" in os.environ
 
@@ -50,8 +60,13 @@ def setup_config():
         EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
     else:
         load_dotenv('../.env.local')
+#endregion
 
-
+#region Agent Configuration
+"""
+Functions for creating and configuring the linguistic analysis agent
+Defines rules and behavior for word deconstruction
+"""
 def create_word_agent() -> Agent:
     return Agent(
         rules=[
@@ -81,7 +96,7 @@ Break down '{word}' into its etymological components."""
         return WordOutput.model_validate_json(response_text)
     except Exception as e:
         raise ValueError(f"Failed to parse agent response as JSON: {e}")
-
+#endregion
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
