@@ -90,8 +90,9 @@ def setup_config():
 
 #region Agent Configuration
 """
-Functions for creating and configuring the linguistic analysis agent
-Defines rules and behavior for word deconstruction
+Creating and configuring the linguistic analysis agent.
+Uses the pydantic model for structured output.
+Rules are loaded from Griptape Cloud.
 """
 
 def create_word_agent() -> Agent:
@@ -108,7 +109,13 @@ def create_word_agent() -> Agent:
         output_schema=WordOutput,
         rulesets=[ruleset]
     )
+#endregion
 
+#region Word Deconstruction
+"""
+Functions for deconstructing words using the linguistic analysis agent. 
+Handles prompt construction and result parsing
+"""
 
 def deconstruct_word(agent: Agent, word: str, previous_attempts: list = None) -> dict:
     prompt = f"""Your task is to deconstruct this EXACT word: '{word}'

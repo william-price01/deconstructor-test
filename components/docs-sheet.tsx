@@ -69,9 +69,23 @@ export default function DocsSheet() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env.GT_CLOUD_STRUCTURE_SOURCE_URL!)
-            .then((res) => res.text())
+        console.log("Source URL:", process.env.NEXT_PUBLIC_GT_CLOUD_STRUCTURE_SOURCE_URL);
+
+        if (!process.env.NEXT_PUBLIC_GT_CLOUD_STRUCTURE_SOURCE_URL) {
+            console.error("Missing NEXT_PUBLIC_GT_CLOUD_STRUCTURE_SOURCE_URL environment variable");
+            setLoading(false);
+            return;
+        }
+
+        fetch(process.env.NEXT_PUBLIC_GT_CLOUD_STRUCTURE_SOURCE_URL)
+            .then((res) => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.text();
+            })
             .then((text) => {
+                console.log("Fetched content length:", text.length); // Debug log
                 setSections(parseCodeSections(text));
                 setLoading(false);
             })
