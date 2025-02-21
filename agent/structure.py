@@ -64,13 +64,6 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        # Configure default JSON serialization for events
-        Defaults.DRIVERS_CONFIG = DriversConfig(
-            event_listener_driver_config={
-                "json_encoder": lambda obj: obj.model_dump() if hasattr(obj, 'model_dump') else str(obj)
-            }
-        )
-        
         event_driver = GriptapeCloudEventListenerDriver(
             api_key=get_listener_api_key()
         )
