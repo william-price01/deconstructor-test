@@ -137,37 +137,19 @@ export default function DocsSheet() {
 
     const getDisplayContent = () => {
         return sections.map(section => {
-            if (section.type === 'region') {
+            if (section.type === 'region' || section.type === 'imports') {
                 const isExpanded = expandedSections.has(section.id);
                 if (isExpanded) {
                     return [
-                        `# --- ${section.title} ---`,
-                        `"""`,
-                        section.description || '',
-                        `"""`,
+                        `# --- ${section.title || section.type} ---`,
+                        section.description ? `"""\n${section.description}\n"""` : '',
                         ...section.content,
-                        '# --- End Region ---'
-                    ].join('\n');
-                } else {
-                    const description = section.description || '';
-                    return [
-                        `# --- ${section.title} (click to expand) ---`,
-                        description ? `# ${description.split('\n')[0]}...` : ''
-                    ].join('\n');
-                }
-            }
-            if (section.type === 'imports' && section.content.length > 1) {
-                const isExpanded = expandedSections.has(section.id);
-                if (isExpanded) {
-                    return [
-                        `# --- Imports (${section.content.length} total) ---`,
-                        ...section.content,
-                        '# --- End Imports ---'
+                        `# --- End ${section.title || section.type} ---`
                     ].join('\n');
                 } else {
                     return [
-                        section.content[0],
-                        `# ... ${section.content.length - 1} more imports (click to expand) ...`
+                        `# --- ${section.title || section.type} (click to expand) ---`,
+                        section.description ? `# ${section.description.split('\n')[0]}...` : ''
                     ].join('\n');
                 }
             }
@@ -176,21 +158,16 @@ export default function DocsSheet() {
     };
 
     const handleLineClick = (lineNumber: number) => {
-        // Find which section contains this line
         let currentLine = 0;
         for (const section of sections) {
-            const sectionLines = section.type === 'region'
+            const sectionLines = (section.type === 'region' || section.type === 'imports')
                 ? (expandedSections.has(section.id)
                     ? section.content.length + 4  // +4 for header, description, and footer
                     : 2)  // Header and collapsed description
-                : section.type === 'imports' && section.content.length > 1
-                    ? (expandedSections.has(section.id)
-                        ? section.content.length + 2  // +2 for header and footer
-                        : 2)  // First import and collapse message
-                    : section.content.length;
+                : section.content.length;
 
             if (currentLine <= lineNumber && lineNumber < currentLine + sectionLines) {
-                if (section.type === 'region' || (section.type === 'imports' && section.content.length > 1)) {
+                if (section.type === 'region' || section.type === 'imports') {
                     toggleSection(section.id);
                 }
                 break;

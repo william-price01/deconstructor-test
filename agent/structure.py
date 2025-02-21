@@ -1,6 +1,13 @@
 import argparse
 import os
 import json
+
+#region Imports
+"""
+External dependencies and type definitions
+Core libraries for CLI, environment, and data handling
+Griptape framework components for AI agent functionality
+"""
 from typing import List
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -10,6 +17,7 @@ from griptape.structures import Agent
 from griptape.rules import Rule
 from griptape.drivers import GriptapeCloudEventListenerDriver
 from griptape.events import EventBus, EventListener
+#endregion
 
 #region Data Model
 """
