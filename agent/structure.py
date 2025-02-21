@@ -103,8 +103,11 @@ Break down '{word}' into its etymological components."""
 
     response = agent.run(prompt)
     try:
-        # Get the value from the GenericArtifact
-        return response.output.value
+        # Convert to dict before returning to ensure JSON serialization works
+        output = response.output.value
+        if isinstance(output, WordOutput):
+            return output.model_dump()
+        return output
     except Exception as e:
         raise ValueError(f"Failed to parse agent response: {e}")
 #endregion
@@ -132,11 +135,12 @@ if __name__ == "__main__":
     try:
         result = deconstruct_word(agent, args.word)
         if args.verbose:
-            print(json.dumps(result.model_dump(), indent=2))
+            print(json.dumps(result, indent=2))
         else:
-            parts = ", ".join(f"{p.text} ({p.meaning})" for p in result.parts)
+            # Handle result as dict now
+            parts = ", ".join(f"{p['text']} ({p['meaning']})" for p in result['parts'])
             print(f"Word: {args.word}")
             print(f"Parts: {parts}")
-            print(f"Definition: {result.combinations[-1][0].definition}")
+            print(f"Definition: {result['combinations'][-1][0]['definition']}")
     except Exception as e:
         print(f"Error deconstructing word: {e}") 
