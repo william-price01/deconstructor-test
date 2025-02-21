@@ -27,13 +27,6 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const isLoadingAtom = atom(false);
 
-type Combination = {
-  id: string;
-  text: string;
-  definition: string;
-  sourceIds: string[];
-};
-
 const WordChunkNode = ({ data }: { data: { text: string } }) => {
   const [isLoading] = useAtom(isLoadingAtom);
   return (
@@ -112,7 +105,6 @@ const InputNode = ({
   const [word, setWord] = useState(data.initialWord || "");
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
   const [dots, setDots] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Add pulsing dots effect
   useEffect(() => {
@@ -459,7 +451,6 @@ function Deconstructor({ word }: { word?: string }) {
   const [events, setEvents] = useState<any[]>([]);
   const [definition, setDefinition] = useState<Definition>(defaultDefinition);
   const plausible = usePlausible();
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleWordSubmit = async (word: string) => {
     console.log("handleWordSubmit", word);
