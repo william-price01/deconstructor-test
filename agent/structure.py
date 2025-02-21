@@ -56,8 +56,9 @@ def create_word_agent() -> Agent:
     return Agent(
         rules=[
             Rule("You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology."),
+            Rule("You must ONLY analyze the exact input word provided, never substitute it with a different word."),
             Rule("Create multiple layers of combinations to form the final meaning of the word."),
-            Rule("The final combination must be the complete word."),
+            Rule("The final combination must be the complete input word."),
             Rule("All IDs must be unique across both parts and combinations."),
             Rule("The parts must combine exactly to form the input word."),
             Rule("Respond with a JSON object that matches this schema exactly:"),
@@ -67,7 +68,10 @@ def create_word_agent() -> Agent:
 
 
 def deconstruct_word(agent: Agent, word: str, previous_attempts: list = None) -> dict:
-    prompt = f"Deconstruct the word: {word}"
+    prompt = f"""Your task is to deconstruct this EXACT word: '{word}'
+Do not analyze any other word. Focus only on '{word}'.
+Break down '{word}' into its etymological components."""
+
     if previous_attempts:
         prompt += f"\n\nPrevious attempts:\n{json.dumps(previous_attempts, indent=2)}\n\nPlease fix all the issues and try again."
 
@@ -84,7 +88,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-w",
         "--word",
-        default="universal",
+        required=True,
         help="The word to deconstruct",
     )
     parser.add_argument(

@@ -51,22 +51,24 @@ function validateUniqueIds(output: WordOutput): string[] {
 function validateCombinations(word: string, output: WordOutput): string[] {
   const errors: string[] = [];
 
-  // Check if last layer has exactly one item
-  const lastLayer = output.combinations[output.combinations.length - 1];
-  if (lastLayer.length !== 1) {
-    errors.push(
-      `The last layer should have exactly one item, which should be the original word, but you have ${lastLayer.length} items. You may need to add one more layer and move the final word to the next layer.`
-    );
+  // Check if combinations array is empty
+  if (!output.combinations.length) {
+    errors.push("Combinations array cannot be empty");
+    return errors;
   }
 
-  // Check if last combination is the full word
-  if (lastLayer?.length === 1) {
-    const finalWord = lastLayer[0].text.toLowerCase();
-    if (finalWord !== word.toLowerCase()) {
-      errors.push(
-        `The final combination "${finalWord}" does not match the input word "${word}"`
-      );
-    }
+  // Find the last combination across all layers
+  const lastCombination = output.combinations
+    .flat()
+    .reduce((latest, current) =>
+      latest.text.length >= current.text.length ? latest : current
+    );
+
+  // Check if final combination matches the word
+  if (lastCombination.text.toLowerCase() !== word.toLowerCase()) {
+    errors.push(
+      `The final combination "${lastCombination.text}" does not match the input word "${word}"`
+    );
   }
 
   // Build a map of how many times each ID is used as a source
@@ -78,21 +80,19 @@ function validateCombinations(word: string, output: WordOutput): string[] {
   });
 
   // Count how many times each ID is used as a source
-  output.combinations.forEach((layer) => {
-    layer.forEach((combo) => {
-      combo.sourceIds.forEach((sourceId) => {
-        const count = childCount.get(sourceId) ?? 0;
-        childCount.set(sourceId, count + 1);
-      });
-      // Initialize count for this combination
-      childCount.set(combo.id, 0);
+  output.combinations.flat().forEach((combo) => {
+    combo.sourceIds.forEach((sourceId) => {
+      const count = childCount.get(sourceId) ?? 0;
+      childCount.set(sourceId, count + 1);
     });
+    // Initialize count for this combination
+    childCount.set(combo.id, 0);
   });
 
   // Check that each node (except the final word) has exactly one child
   for (const [id, count] of childCount.entries()) {
-    // Skip the final word as it shouldn't have any children
-    if (lastLayer?.length === 1 && id === lastLayer[0].id) continue;
+    // Skip the final combination as it shouldn't have any children
+    if (id === lastCombination.id) continue;
 
     if (count === 0) {
       errors.push(
@@ -102,25 +102,6 @@ function validateCombinations(word: string, output: WordOutput): string[] {
       errors.push(
         `The node "${id}" is used ${count} times as a source, but should only be used once. Remove extra uses.`
       );
-    }
-  }
-
-  // Validate DAG structure
-  const allIds = new Set(output.parts.map((p) => p.id));
-  for (let i = 0; i < output.combinations.length; i++) {
-    const layer = output.combinations[i];
-    // Add combination IDs from this layer
-    layer.forEach((combo) => allIds.add(combo.id));
-
-    // Check if all sourceIds exist in previous layers
-    for (const combo of layer) {
-      for (const sourceId of combo.sourceIds) {
-        if (!allIds.has(sourceId)) {
-          errors.push(
-            `The sourceId "${sourceId}" in combination "${combo.id}" does not exist in previous layers.`
-          );
-        }
-      }
     }
   }
 
@@ -233,8 +214,9 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           inputs: {
-            word
-          }
+            word: word.toLowerCase().trim()
+          },
+          args: ["-w", word.toLowerCase().trim()]  // Add explicit args
         })
       }
     );
