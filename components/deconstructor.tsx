@@ -451,6 +451,7 @@ function Deconstructor({ word }: { word?: string }) {
   const [events, setEvents] = useState<any[]>([]);
   const [definition, setDefinition] = useState<Definition>(defaultDefinition);
   const plausible = usePlausible();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleWordSubmit = async (word: string) => {
     console.log("handleWordSubmit", word);
