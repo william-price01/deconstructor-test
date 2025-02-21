@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Spinner from "@/components/spinner";
-import { CodeIcon } from "lucide-react";
+import { CodeIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -67,6 +67,7 @@ function parseCodeSections(code: string): CodeSection[] {
 export default function DocsSheet() {
     const [sections, setSections] = useState<CodeSection[]>([]);
     const [loading, setLoading] = useState(true);
+    const [expandedSections, setExpandedSections] = useState<boolean[]>([]);
 
     useEffect(() => {
         console.log("Source URL:", process.env.NEXT_PUBLIC_GT_CLOUD_STRUCTURE_SOURCE_URL);
@@ -86,7 +87,11 @@ export default function DocsSheet() {
             })
             .then((text) => {
                 console.log("Fetched content length:", text.length); // Debug log
-                setSections(parseCodeSections(text));
+                const parsedSections = parseCodeSections(text);
+                setSections(parsedSections);
+                setExpandedSections(parsedSections.map(section =>
+                    section.title === "Data Model" || section.title === "Agent Configuration"
+                ));
                 setLoading(false);
             })
             .catch((err) => {
@@ -94,6 +99,14 @@ export default function DocsSheet() {
                 setLoading(false);
             });
     }, []);
+
+    const toggleSection = (index: number) => {
+        setExpandedSections(prev => {
+            const next = [...prev];
+            next[index] = !next[index];
+            return next;
+        });
+    };
 
     return (
         <Sheet>
@@ -116,34 +129,47 @@ export default function DocsSheet() {
                         <div className="space-y-6">
                             {sections.map((section, index) => (
                                 <div key={index} className="border-b border-border pb-6 last:border-0">
-                                    <h3 className="text-lg font-semibold mb-2">{section.title}</h3>
-                                    {section.description && (
-                                        <p className="text-sm text-muted-foreground mb-4">
-                                            {section.description}
-                                        </p>
-                                    )}
-                                    <SyntaxHighlighter
-                                        language="python"
-                                        style={{
-                                            ...oneDark,
-                                            'pre[class*="language-"]': {
-                                                ...oneDark['pre[class*="language-"]'],
-                                                background: 'transparent',
-                                                margin: 0,
-                                                padding: '1rem',
-                                            },
-                                            'code[class*="language-"]': {
-                                                ...oneDark['code[class*="language-"]'],
-                                                background: 'transparent',
-                                            },
-                                        }}
-                                        showLineNumbers
-                                        customStyle={{
-                                            fontSize: '12px',
-                                        }}
+                                    <div
+                                        className="flex items-center justify-between cursor-pointer mb-2"
+                                        onClick={() => toggleSection(index)}
                                     >
-                                        {section.code.trim()}
-                                    </SyntaxHighlighter>
+                                        <h3 className="text-lg font-semibold">{section.title}</h3>
+                                        {expandedSections[index] ?
+                                            <ChevronUp className="h-4 w-4" /> :
+                                            <ChevronDown className="h-4 w-4" />
+                                        }
+                                    </div>
+                                    {expandedSections[index] && (
+                                        <>
+                                            {section.description && (
+                                                <p className="text-sm text-muted-foreground mb-4">
+                                                    {section.description}
+                                                </p>
+                                            )}
+                                            <SyntaxHighlighter
+                                                language="python"
+                                                style={{
+                                                    ...oneDark,
+                                                    'pre[class*="language-"]': {
+                                                        ...oneDark['pre[class*="language-"]'],
+                                                        background: 'transparent',
+                                                        margin: 0,
+                                                        padding: '1rem',
+                                                    },
+                                                    'code[class*="language-"]': {
+                                                        ...oneDark['code[class*="language-"]'],
+                                                        background: 'transparent',
+                                                    },
+                                                }}
+                                                showLineNumbers
+                                                customStyle={{
+                                                    fontSize: '12px',
+                                                }}
+                                            >
+                                                {section.code.trim()}
+                                            </SyntaxHighlighter>
+                                        </>
+                                    )}
                                 </div>
                             ))}
                         </div>
