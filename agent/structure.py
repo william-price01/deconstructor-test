@@ -50,7 +50,7 @@ class WordOutput(BaseModel):
     combinations: List[List[Combination]] = Field(description="Layers of combinations forming a DAG to the final word")
 
     def __str__(self):
-        return json.dumps(self.model_dump())
+        return self.model_dump_json()
 
     def __repr__(self):
         return self.__str__()
