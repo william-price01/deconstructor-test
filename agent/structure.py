@@ -1,6 +1,11 @@
 import argparse
 import os
 import json
+import logging
+
+# Set up logging configuration
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 #region Imports
 """
@@ -64,17 +69,31 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        class CustomJSONEncoder(json.JSONEncoder):
-            def default(self, obj):
-                if hasattr(obj, 'model_dump'):
-                    return obj.model_dump()
-                return str(obj)
+        class DebugEventListener(EventListener):
+            def on_event(self, event):
+                try:
+                    logger.debug(f"Event type: {type(event)}")
+                    # Convert event data to dict if it's a Pydantic model
+                    event_data = {}
+                    for key, value in event.__dict__.items():
+                        if hasattr(value, 'model_dump'):
+                            event_data[key] = value.model_dump()
+                        elif isinstance(value, (str, int, float, bool, list, dict)):
+                            event_data[key] = value
+                        else:
+                            event_data[key] = str(value)
+                    
+                    logger.debug(f"Processed event data: {event_data}")
+                    # Replace the event's __dict__ with our processed data
+                    event.__dict__ = event_data
+                except Exception as e:
+                    logger.error(f"Event processing failed: {e}")
+                super().on_event(event)
 
         event_driver = GriptapeCloudEventListenerDriver(
-            api_key=get_listener_api_key(),
-            json_encoder=CustomJSONEncoder
+            api_key=get_listener_api_key()
         )
-        EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
+        EventBus.add_event_listener(DebugEventListener(event_listener_driver=event_driver))
     else:
         load_dotenv('../.env.local')
 #endregion
