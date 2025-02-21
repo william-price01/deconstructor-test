@@ -252,8 +252,14 @@ export async function POST(req: Request) {
 
       if (pollData.status === 'SUCCEEDED' && pollData.output?.value) {
         try {
-          // Parse the string value from the TextArtifact
-          const result = { object: JSON.parse(pollData.output.value) };
+          // Clean the output value of any markdown code block markers
+          const cleanValue = pollData.output.value
+            .replace(/```json\n/, '')  // Remove opening ```json
+            .replace(/\n```$/, '')     // Remove closing ```
+            .trim();                   // Remove any extra whitespace
+
+          // Parse the cleaned JSON string
+          const result = { object: JSON.parse(cleanValue) };
 
           const errors: string[] = [
             ...validateWordParts(word, result.object.parts),
@@ -271,6 +277,7 @@ export async function POST(req: Request) {
 
           return NextResponse.json(result.object);
         } catch (e) {
+          console.error("Parse error details:", pollData.output.value); // Add this for debugging
           throw new Error(`Failed to parse output: ${e}`);
         }
       }
