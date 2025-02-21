@@ -79,10 +79,10 @@ def setup_config():
             def on_event(self, event):
                 try:
                     logger.debug(f"Event type: {type(event)}")
-                    # Convert WordOutput to JSON string
+                    # Convert WordOutput to JSON string using model_dump_json()
                     if hasattr(event, 'output') and hasattr(event.output, 'value'):
                         if isinstance(event.output.value, WordOutput):
-                            event.output.value = str(event.output.value)
+                            event.output.value = event.output.value.model_dump_json()
                 except Exception as e:
                     logger.error(f"Event processing failed: {e}")
                 super().on_event(event)
