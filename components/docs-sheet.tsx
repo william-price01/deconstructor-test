@@ -179,14 +179,18 @@ export default function DocsSheet() {
         // Find which section contains this line
         let currentLine = 0;
         for (const section of sections) {
-            const sectionLines = section.type === 'imports' && section.content.length > 1
+            const sectionLines = section.type === 'region'
                 ? (expandedSections.has(section.id)
-                    ? section.content.length + 2  // +2 for header and footer
-                    : 2)  // First import and collapse message
-                : section.content.length;
+                    ? section.content.length + 4  // +4 for header, description, and footer
+                    : 2)  // Header and collapsed description
+                : section.type === 'imports' && section.content.length > 1
+                    ? (expandedSections.has(section.id)
+                        ? section.content.length + 2  // +2 for header and footer
+                        : 2)  // First import and collapse message
+                    : section.content.length;
 
             if (currentLine <= lineNumber && lineNumber < currentLine + sectionLines) {
-                if (section.type === 'imports' && section.content.length > 1) {
+                if (section.type === 'region' || (section.type === 'imports' && section.content.length > 1)) {
                     toggleSection(section.id);
                 }
                 break;
