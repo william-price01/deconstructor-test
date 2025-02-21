@@ -48,6 +48,12 @@ class WordOutput(BaseModel):
     thought: str = Field(description="Think about the word/phrase, it's origins, and how it's put together")
     parts: List[WordPart] = Field(description="Array of word parts that combine to form the word")
     combinations: List[List[Combination]] = Field(description="Layers of combinations forming a DAG to the final word")
+
+    def __str__(self):
+        return json.dumps(self.model_dump())
+
+    def __repr__(self):
+        return self.__str__()
 #endregion
 
 #region Environment Setup
@@ -73,19 +79,10 @@ def setup_config():
             def on_event(self, event):
                 try:
                     logger.debug(f"Event type: {type(event)}")
-                    # Convert event data to dict if it's a Pydantic model
-                    event_data = {}
-                    for key, value in event.__dict__.items():
-                        if hasattr(value, 'model_dump'):
-                            event_data[key] = value.model_dump()
-                        elif isinstance(value, (str, int, float, bool, list, dict)):
-                            event_data[key] = value
-                        else:
-                            event_data[key] = str(value)
-                    
-                    logger.debug(f"Processed event data: {event_data}")
-                    # Replace the event's __dict__ with our processed data
-                    event.__dict__ = event_data
+                    # Convert WordOutput to JSON string
+                    if hasattr(event, 'output') and hasattr(event.output, 'value'):
+                        if isinstance(event.output.value, WordOutput):
+                            event.output.value = str(event.output.value)
                 except Exception as e:
                     logger.error(f"Event processing failed: {e}")
                 super().on_event(event)
