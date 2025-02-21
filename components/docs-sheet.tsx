@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import Spinner from "@/components/spinner";
-import { BookOpenIcon, ChevronRight, ChevronDown } from "lucide-react";
+import { CodeIcon, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -199,7 +199,7 @@ export default function DocsSheet() {
         <Sheet>
             <SheetTrigger asChild>
                 <Button size="icon" variant="outline">
-                    <BookOpenIcon className="h-4 w-4" />
+                    <CodeIcon className="h-4 w-4" />
                 </Button>
             </SheetTrigger>
             <SheetContent>
