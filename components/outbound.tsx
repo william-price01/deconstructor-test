@@ -25,12 +25,12 @@ export default function Outbound() {
   return (
     <div className="absolute top-5 right-5 z-50">
       <div className="flex gap-1">
-        <OutboundButton href="https://ayush.digital" Icon={HouseIcon} />
+        <OutboundButton href="https://griptape.ai" Icon={HouseIcon} />
         <OutboundButton
-          href="https://github.com/hyusap/deconstructor"
+          href="https://github.com/kyleroche/deconstructor"
           Icon={GithubIcon}
         />
-        <OutboundButton href="https://x.com/hyusapx" Icon={TwitterIcon} />
+        <OutboundButton href="https://x.com/griptapeai" Icon={TwitterIcon} />
       </div>
     </div>
   );

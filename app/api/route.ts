@@ -1,8 +1,5 @@
-import { generateObject } from "ai";
 import { wordSchema } from "@/utils/schema";
 import { NextResponse } from "next/server";
-import { openai } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
 import { z } from "zod";
 
 // Define the schema for word parts and combinations
@@ -225,67 +222,88 @@ export async function POST(req: Request) {
       );
     }
 
-    const attempts: LastAttempt[] = [];
-    const maxAttempts = 3;
-
-    while (attempts.length < maxAttempts) {
-      const prompt: string =
-        attempts.length === 0
-          ? `Deconstruct the word: ${word}`
-          : `Deconstruct the word: ${word}
-
-Previous attempts:
-${attempts
-            .map(
-              (attempt, index) => `
-Attempt ${index + 1}:
-${JSON.stringify(attempt.output, null, 2)}
-Errors:
-${attempt.errors.map((error) => `- ${error}`).join("\n")}
-`
-            )
-            .join("\n")}
-
-Please fix all the issues and try again.`;
-
-      console.log("prompt", prompt);
-
-      const systemPrompt = `You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology. Create multiple layers of combinations to form the final meaning of the word.
-
-Schema Requirements:
-${JSON.stringify(wordSchema.shape, null, 2)}
-
-Respond only with a valid JSON object matching this schema exactly.`;
-
-      const result = await generateObject({
-        model: google("gemini-2.0-flash"),
-        system: systemPrompt,
-        prompt,
-        schema: wordSchema,
-      });
-
-      const errors: string[] = [
-        ...validateWordParts(word, result.object.parts),
-        ...validateUniqueIds(result.object),
-        ...validateCombinations(word, result.object),
-      ];
-
-      if (errors.length > 0) {
-        console.log("validation errors:", errors);
-        attempts.push({
-          errors,
-          output: result.object,
-        });
-        continue;
+    // Step 1: Queue the job
+    const queueResponse = await fetch(
+      "https://cloud.griptape.ai/api/structures/3e8d0dea-4c37-47a3-9f71-1a819bf07a2a/runs",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.GRIPTAPE_CLOUD_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: {
+            word
+          }
+        })
       }
+    );
 
-      return NextResponse.json(result.object);
+    if (!queueResponse.ok) {
+      throw new Error(`Failed to queue job: ${queueResponse.statusText}`);
     }
 
-    // Return the last attempt anyway
-    return NextResponse.json(attempts[attempts.length - 1]?.output, {
-      status: 203,
-    });
+    const queueData = await queueResponse.json();
+    const runId = queueData.structure_run_id;
+    console.log('Job queued with run ID:', runId);
+
+    // Step 2: Poll for results
+    let attempts = 0;
+    const maxAttempts = 30; // 30 second timeout
+
+    while (attempts < maxAttempts) {
+      const pollResponse = await fetch(
+        `https://cloud.griptape.ai/api/structure-runs/${runId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${process.env.GRIPTAPE_CLOUD_API_KEY}`,
+          }
+        }
+      );
+
+      if (!pollResponse.ok) {
+        throw new Error(`Failed to poll job: ${pollResponse.statusText}`);
+      }
+
+      const pollData = await pollResponse.json();
+      console.log('Poll response:', pollData);
+
+      if (pollData.status === 'SUCCEEDED' && pollData.output?.value) {
+        try {
+          // Parse the string value from the TextArtifact
+          const result = { object: JSON.parse(pollData.output.value) };
+
+          const errors: string[] = [
+            ...validateWordParts(word, result.object.parts),
+            ...validateUniqueIds(result.object),
+            ...validateCombinations(word, result.object),
+          ];
+
+          if (errors.length > 0) {
+            console.log("validation errors:", errors);
+            return NextResponse.json(
+              { error: "Validation failed", errors },
+              { status: 400 }
+            );
+          }
+
+          return NextResponse.json(result.object);
+        } catch (e) {
+          throw new Error(`Failed to parse output: ${e}`);
+        }
+      }
+
+      if (pollData.status === 'FAILED') {
+        throw new Error(`Job failed: ${pollData.status_detail?.message || 'Unknown error'}`);
+      }
+
+      // Wait 1 second before next poll
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      attempts++;
+    }
+
+    throw new Error('Timeout waiting for job completion');
+
   } catch (error) {
     console.error("Error generating word deconstruction:", error);
     return NextResponse.json(
