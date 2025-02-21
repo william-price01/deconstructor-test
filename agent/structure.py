@@ -2,6 +2,7 @@ import argparse
 import os
 import json
 import logging
+from datetime import datetime
 
 # Set up logging configuration
 logging.basicConfig(level=logging.DEBUG)
@@ -73,9 +74,10 @@ def setup_config():
         def event_handler(event) -> dict | BaseEvent:
             try:
                 logger.debug(f"Event type: {type(event)}")
-                if isinstance(event, FinishStructureRunEvent):
-                    event.output_task_output.value = event.output_task_output.value.model_dump()
-                return event
+                model = event.output_task_output.value.model_dump() if isinstance(event, FinishStructureRunEvent) else event
+                model["timestamp"] = datetime.now().isoformat()
+                model["type"] = type(event).__name__
+                return model
             except Exception as e:
                 logger.error(f"Event processing failed: {e}")
                 return event
@@ -86,12 +88,14 @@ def setup_config():
         
         event_listener = EventListener(
             on_event=event_handler,
-            event_listener_driver=event_driver
+            event_listener_driver=event_driver,
+            event_types=[FinishStructureRunEvent]
         )
         
         EventBus.add_event_listener(event_listener)
     else:
         load_dotenv('../.env.local')
+        
 #endregion
 
 #region Agent Configuration
