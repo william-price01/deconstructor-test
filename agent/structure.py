@@ -76,7 +76,7 @@ def setup_config():
                 if hasattr(event, 'output') and hasattr(event.output, 'value'):
                     if isinstance(event.output.value, WordOutput):
                         # Convert directly to JSON using Pydantic's serializer
-                        return event.output.value.model_dump_json()
+                        return event.output.value.model_dump()
                 return event
             except Exception as e:
                 logger.error(f"Event processing failed: {e}")
