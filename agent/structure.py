@@ -21,7 +21,7 @@ from griptape.configs.drivers import DriversConfig
 from griptape.structures import Agent
 from griptape.rules import Rule
 from griptape.drivers.event_listener.griptape_cloud import GriptapeCloudEventListenerDriver
-from griptape.events import EventBus, EventListener
+from griptape.events import EventBus, EventListener, FinishStructureRunEvent, BaseEvent
 #endregion
 
 #region Data Model
@@ -70,8 +70,24 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        event_driver = GriptapeCloudEventListenerDriver(api_key=get_listener_api_key())
-        EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
+        def event_handler(event) -> dict | BaseEvent:
+            try:
+                logger.debug(f"Event type: {type(event)}")
+                return event.output_task_output.value.model_dump() if isinstance(event, FinishStructureRunEvent) else event
+            except Exception as e:
+                logger.error(f"Event processing failed: {e}")
+                return event
+
+        event_driver = GriptapeCloudEventListenerDriver(
+            api_key=get_listener_api_key()
+        )
+        
+        event_listener = EventListener(
+            on_event=event_handler,
+            event_listener_driver=event_driver
+        )
+        
+        EventBus.add_event_listener(event_listener)
     else:
         load_dotenv('../.env.local')
 #endregion
