@@ -23,7 +23,7 @@ from griptape.configs.drivers import DriversConfig
 from griptape.structures import Agent
 from griptape.rules import Rule
 from griptape.drivers.event_listener.griptape_cloud import GriptapeCloudEventListenerDriver
-from griptape.events import EventBus, EventListener, FinishStructureRunEvent, BaseEvent
+from griptape.events import EventBus, EventListener, FinishStructureRunEvent, FinishTaskEvent, BaseEvent
 #endregion
 
 #region Data Model
@@ -72,33 +72,28 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        setup_output_config()
+        def event_handler(event: BaseEvent):
+            if isinstance(event, FinishStructureRunEvent):
+                if event.output_task_output is not None and isinstance(event.output_task_output.value, BaseModel):
+                    event.output_task_output.value = event.output_task_output.value.model_dump()
+            if isinstance(event, FinishTaskEvent):
+                if event.task_output is not None and isinstance(event.task_output.value, BaseModel):
+                    event.task_output.value = event.task_output.value.model_dump()
+            
+            return event
+
+        event_driver = GriptapeCloudEventListenerDriver(
+            api_key=get_listener_api_key()
+        )
+        
+        event_listener = EventListener(
+            on_event=event_handler,
+            event_listener_driver=event_driver,
+        )
+        
+        EventBus.add_event_listener(event_listener)
     else:
         load_dotenv('../.env.local')
-        
-
-def setup_output_config():
-    def event_handler(event) -> Dict[str, Any]:
-        try:
-            if isinstance(event, FinishStructureRunEvent):
-                # Convert to JSON schema format
-                model = WordOutput.model_json_schema()
-                model["timestamp"] = datetime.now().isoformat()
-                model["type"] = type(event).__name__
-                model["data"] = event.output_task_output.value.model_dump()
-                return model
-            return event
-        except Exception as e:
-            logger.error(f"Event processing failed: {e}")
-            return event
-
-    event_driver = GriptapeCloudEventListenerDriver(api_key=get_listener_api_key())
-    event_listener = EventListener(
-        on_event=event_handler,
-        event_listener_driver=event_driver,
-        event_types=[FinishStructureRunEvent]
-    )
-    EventBus.add_event_listener(event_listener)
 #endregion
 
 #region Agent Configuration
