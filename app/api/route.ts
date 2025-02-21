@@ -266,8 +266,9 @@ export async function POST(req: Request) {
     const { word: rawWord } = await req.json();
     const word = rawWord.trim().toLowerCase();
 
+    // # "https://cloud.griptape.ai/api/structures/3e8d0dea-4c37-47a3-9f71-1a819bf07a2a/runs",
     const queueResponse = await fetch(
-      "https://cloud.griptape.ai/api/structures/3e8d0dea-4c37-47a3-9f71-1a819bf07a2a/runs",
+      "https://cloud.griptape.ai/api/structures/bbf28f66-d458-4f8e-950f-716c7ee65db5/runs",
       {
         method: "POST",
         headers: {

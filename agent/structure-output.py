@@ -3,6 +3,7 @@ import os
 import json
 import logging
 from datetime import datetime
+from typing import Dict, Any
 
 # Set up logging configuration
 logging.basicConfig(level=logging.DEBUG)
@@ -71,31 +72,33 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        def event_handler(event) -> dict | BaseEvent:
-            try:
-                logger.debug(f"Event type: {type(event)}")
-                model = event.output_task_output.value.model_dump() if isinstance(event, FinishStructureRunEvent) else event
-                model["timestamp"] = datetime.now().isoformat()
-                model["type"] = type(event).__name__
-                return model
-            except Exception as e:
-                logger.error(f"Event processing failed: {e}")
-                return event
-
-        event_driver = GriptapeCloudEventListenerDriver(
-            api_key=get_listener_api_key()
-        )
-        
-        event_listener = EventListener(
-            on_event=event_handler,
-            event_listener_driver=event_driver,
-            event_types=[FinishStructureRunEvent]
-        )
-        
-        EventBus.add_event_listener(event_listener)
+        setup_output_config()
     else:
         load_dotenv('../.env.local')
         
+
+def setup_output_config():
+    def event_handler(event) -> Dict[str, Any]:
+        try:
+            if isinstance(event, FinishStructureRunEvent):
+                # Convert to JSON schema format
+                model = WordOutput.model_json_schema()
+                model["timestamp"] = datetime.now().isoformat()
+                model["type"] = type(event).__name__
+                model["data"] = event.output_task_output.value.model_dump()
+                return model
+            return event
+        except Exception as e:
+            logger.error(f"Event processing failed: {e}")
+            return event
+
+    event_driver = GriptapeCloudEventListenerDriver(api_key=get_listener_api_key())
+    event_listener = EventListener(
+        on_event=event_handler,
+        event_listener_driver=event_driver,
+        event_types=[FinishStructureRunEvent]
+    )
+    EventBus.add_event_listener(event_listener)
 #endregion
 
 #region Agent Configuration
