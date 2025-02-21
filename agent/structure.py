@@ -77,6 +77,7 @@ Defines rules and behavior for word deconstruction
 """
 def create_word_agent() -> Agent:
     return Agent(
+        output_schema=WordOutput,
         rules=[
             Rule("You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology."),
             Rule("You must ONLY analyze the exact input word provided, never substitute it with a different word."),
@@ -84,13 +85,13 @@ def create_word_agent() -> Agent:
             Rule("The final combination must be the complete input word."),
             Rule("All IDs must be unique across both parts and combinations."),
             Rule("The parts must combine exactly to form the input word."),
-            Rule("Respond with a JSON object that matches this schema exactly:"),
-            Rule(json.dumps(WordOutput.model_json_schema(), indent=2))
+            # Rule("Respond with a JSON object that matches this schema exactly:"),
+            # Rule(json.dumps(WordOutput.model_json_schema(), indent=2))
         ]
     )
 
 
-def deconstruct_word(agent: Agent, word: str, previous_attempts: list = None) -> dict:
+def deconstruct_word(agent: Agent, word: str, previous_attempts: list = None) -> WordOutput:
     prompt = f"""Your task is to deconstruct this EXACT word: '{word}'
 Do not analyze any other word. Focus only on '{word}'.
 Break down '{word}' into its etymological components."""
@@ -100,10 +101,10 @@ Break down '{word}' into its etymological components."""
 
     response = agent.run(prompt)
     try:
-        response_text = str(response.output)
-        return WordOutput.model_validate_json(response_text)
+        # Get the value from the GenericArtifact
+        return response.output.value
     except Exception as e:
-        raise ValueError(f"Failed to parse agent response as JSON: {e}")
+        raise ValueError(f"Failed to parse agent response: {e}")
 #endregion
 
 if __name__ == "__main__":

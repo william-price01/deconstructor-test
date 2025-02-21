@@ -1,92 +1,117 @@
 import argparse
 import os
 import json
+
+#region Imports
+"""
+External dependencies and type definitions
+Core libraries for CLI, environment, and data handling
+Griptape framework components for AI agent functionality
+"""
+from typing import List
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from griptape.configs import Defaults
 from griptape.configs.drivers import DriversConfig
-from griptape.drivers.prompt.google import GooglePromptDriver
 from griptape.structures import Agent
+from griptape.rules import Rule
+from griptape.drivers import GriptapeCloudEventListenerDriver
+from griptape.events import EventBus, EventListener
+#endregion
+
+#region Data Model
+"""
+Pydantic models defining the structure for word parts and combinations
+Used for type validation and JSON schema generation
+"""
+class WordPart(BaseModel):
+    id: str = Field(description="Lowercase identifier, unique across parts and combinations")
+    text: str = Field(description="Exact section of input word")
+    originalWord: str = Field(description="Oldest word/affix this part comes from")
+    origin: str = Field(description="Brief origin (Latin, Greek, etc)")
+    meaning: str = Field(description="Concise meaning of this part")
 
 
+class Combination(BaseModel):
+    id: str = Field(description="Unique lowercase identifier")
+    text: str = Field(description="Combined text segments")
+    definition: str = Field(description="Clear definition of combined parts")
+    sourceIds: List[str] = Field(description="Array of part/combination ids used")
+
+
+class WordOutput(BaseModel):
+    thought: str = Field(description="Think about the word/phrase, it's origins, and how it's put together")
+    parts: List[WordPart] = Field(description="Array of word parts that combine to form the word")
+    combinations: List[List[Combination]] = Field(description="Layers of combinations forming a DAG to the final word")
+#endregion
+
+#region Environment Setup
+"""
+Functions for configuring the runtime environment
+Handles cloud vs local execution and API key management
+If this is running in Griptape Cloud, we will publish events to the event bus
+"""
 def is_running_in_managed_environment() -> bool:
     return "GT_CLOUD_STRUCTURE_RUN_ID" in os.environ
 
 
+def get_listener_api_key() -> str:
+    api_key = os.environ.get("GT_CLOUD_API_KEY", "")
+    if is_running_in_managed_environment() and not api_key:
+        pass
+    return api_key
+
+
 def setup_config():
     if is_running_in_managed_environment():
-        # Cloud environment setup if needed
-        pass
+        event_driver = GriptapeCloudEventListenerDriver(api_key=get_listener_api_key())
+        EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
     else:
         load_dotenv('../.env.local')
+#endregion
 
-    Defaults.drivers_config = DriversConfig(
-        prompt_driver=GooglePromptDriver(
-            model="gemini-pro",
-            api_key=os.environ["GOOGLE_GENERATIVE_AI_API_KEY"],
-        )
+#region Agent Configuration
+"""
+Functions for creating and configuring the linguistic analysis agent
+Defines rules and behavior for word deconstruction
+"""
+def create_word_agent() -> Agent:
+    return Agent(
+        rules=[
+            Rule("You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology."),
+            Rule("You must ONLY analyze the exact input word provided, never substitute it with a different word."),
+            Rule("Create multiple layers of combinations to form the final meaning of the word."),
+            Rule("The final combination must be the complete input word."),
+            Rule("All IDs must be unique across both parts and combinations."),
+            Rule("The parts must combine exactly to form the input word."),
+            Rule("Respond with a JSON object that matches this schema exactly:"),
+            Rule(json.dumps(WordOutput.model_json_schema(), indent=2))
+        ]
     )
 
 
-def create_word_agent() -> Agent:
-    return Agent()
-
-
 def deconstruct_word(agent: Agent, word: str, previous_attempts: list = None) -> dict:
-    # Build the prompt
+    prompt = f"""Your task is to deconstruct this EXACT word: '{word}'
+Do not analyze any other word. Focus only on '{word}'.
+Break down '{word}' into its etymological components."""
+
     if previous_attempts:
-        prompt = f"""Deconstruct the word: {word}
+        prompt += f"\n\nPrevious attempts:\n{json.dumps(previous_attempts, indent=2)}\n\nPlease fix all the issues and try again."
 
-Previous attempts:
-{json.dumps(previous_attempts, indent=2)}
-
-Please fix all the issues and try again."""
-    else:
-        prompt = f"Deconstruct the word: {word}"
-
-    system_prompt = """You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology. Create multiple layers of combinations to form the final meaning of the word.
-
-Schema Requirements:
-{
-  "thought": "Think about the word/phrase, it's origins, and how it's put together",
-  "parts": [
-    {
-      "id": "Lowercase identifier, unique across parts and combinations",
-      "text": "Exact section of input word",
-      "originalWord": "Oldest word/affix this part comes from",
-      "origin": "Brief origin (Latin, Greek, etc)",
-      "meaning": "Concise meaning of this part"
-    }
-  ],
-  "combinations": [
-    [
-      {
-        "id": "Unique lowercase identifier",
-        "text": "Combined text segments",
-        "definition": "Clear definition of combined parts",
-        "sourceIds": ["Array of part/combination ids used"]
-      }
-    ]
-  ]
-}
-
-Respond only with a valid JSON object matching this schema exactly."""
-
-    full_prompt = f"{system_prompt}\n\n{prompt}"
-    response = agent.run(full_prompt)
-    
+    response = agent.run(prompt)
     try:
         response_text = str(response.output)
-        return json.loads(response_text)
-    except json.JSONDecodeError:
-        raise ValueError("Failed to parse agent response as JSON")
-
+        return WordOutput.model_validate_json(response_text)
+    except Exception as e:
+        raise ValueError(f"Failed to parse agent response as JSON: {e}")
+#endregion
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-w",
         "--word",
-        default="universal",
+        required=True,
         help="The word to deconstruct",
     )
     parser.add_argument(
@@ -104,12 +129,11 @@ if __name__ == "__main__":
     try:
         result = deconstruct_word(agent, args.word)
         if args.verbose:
-            print(json.dumps(result, indent=2))
+            print(json.dumps(result.model_dump(), indent=2))
         else:
-            # Print just the word breakdown
-            parts = ", ".join(f"{p['text']} ({p['meaning']})" for p in result["parts"])
+            parts = ", ".join(f"{p.text} ({p.meaning})" for p in result.parts)
             print(f"Word: {args.word}")
             print(f"Parts: {parts}")
-            print(f"Definition: {result['combinations'][-1][0]['definition']}")
+            print(f"Definition: {result.combinations[-1][0].definition}")
     except Exception as e:
         print(f"Error deconstructing word: {e}") 
