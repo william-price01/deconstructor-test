@@ -49,11 +49,6 @@ class WordOutput(BaseModel):
     parts: List[WordPart] = Field(description="Array of word parts that combine to form the word")
     combinations: List[List[Combination]] = Field(description="Layers of combinations forming a DAG to the final word")
 
-    def __str__(self):
-        return self.model_dump_json()
-
-    def __repr__(self):
-        return self.__str__()
 #endregion
 
 #region Environment Setup
@@ -75,22 +70,28 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        class DebugEventListener(EventListener):
-            def on_event(self, event):
-                try:
-                    logger.debug(f"Event type: {type(event)}")
-                    # Convert WordOutput to JSON string using model_dump_json()
-                    if hasattr(event, 'output') and hasattr(event.output, 'value'):
-                        if isinstance(event.output.value, WordOutput):
-                            event.output.value = event.output.value.model_dump_json()
-                except Exception as e:
-                    logger.error(f"Event processing failed: {e}")
-                super().on_event(event)
+        def event_handler(event, context):
+            try:
+                logger.debug(f"Event type: {type(event)}")
+                if hasattr(event, 'output') and hasattr(event.output, 'value'):
+                    if isinstance(event.output.value, WordOutput):
+                        # Convert directly to JSON using Pydantic's serializer
+                        return event.output.value.model_dump_json()
+                return event
+            except Exception as e:
+                logger.error(f"Event processing failed: {e}")
+                return event
 
         event_driver = GriptapeCloudEventListenerDriver(
             api_key=get_listener_api_key()
         )
-        EventBus.add_event_listener(DebugEventListener(event_listener_driver=event_driver))
+        
+        event_listener = EventListener(
+            on_event=event_handler,
+            event_listener_driver=event_driver
+        )
+        
+        EventBus.add_event_listener(event_listener)
     else:
         load_dotenv('../.env.local')
 #endregion
