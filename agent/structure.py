@@ -75,12 +75,11 @@ def setup_config():
                 logger.debug(f"Event type: {type(event)}")
                 if hasattr(event, 'output') and hasattr(event.output, 'value'):
                     if isinstance(event.output.value, WordOutput):
-                        # Convert directly to JSON using Pydantic's serializer
                         return event.output.value.model_dump()
-                return event
+                return None
             except Exception as e:
                 logger.error(f"Event processing failed: {e}")
-                return event
+                return None
 
         event_driver = GriptapeCloudEventListenerDriver(
             api_key=get_listener_api_key()
