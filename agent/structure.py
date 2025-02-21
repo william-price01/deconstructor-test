@@ -70,27 +70,8 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        def event_handler(event):
-            try:
-                logger.debug(f"Event type: {type(event)}")
-                if hasattr(event, 'output') and hasattr(event.output, 'value'):
-                    if isinstance(event.output.value, WordOutput):
-                        return event.output.value.model_dump()
-                return None
-            except Exception as e:
-                logger.error(f"Event processing failed: {e}")
-                return None
-
-        event_driver = GriptapeCloudEventListenerDriver(
-            api_key=get_listener_api_key()
-        )
-        
-        event_listener = EventListener(
-            on_event=event_handler,
-            event_listener_driver=event_driver
-        )
-        
-        EventBus.add_event_listener(event_listener)
+        event_driver = GriptapeCloudEventListenerDriver(api_key=get_listener_api_key())
+        EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
     else:
         load_dotenv('../.env.local')
 #endregion
