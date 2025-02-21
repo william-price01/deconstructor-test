@@ -12,6 +12,10 @@ body {
   filter: blur(calc(var(--loading-state) * 20px));
 }
 
+.react-flow__pane {
+  background-color: hsl(var(--background)) !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -40,12 +44,13 @@ body {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
+
   .dark {
-    --background: 0 0% 3.9%;
+    --background: 215 28% 17%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
+    --card: 0 0% 0%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
+    --popover: 0 0% 0%;
     --popover-foreground: 0 0% 98%;
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 9%;
@@ -72,6 +77,7 @@ body {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }

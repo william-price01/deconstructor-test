@@ -10,10 +10,18 @@ export const maxDuration = 60;
 
 function validateWordParts(word: string, parts: WordOutput["parts"]): string[] {
   const errors: string[] = [];
-  const combinedParts = parts.map((p) => p.text).join("");
+  const combinedParts = parts
+    .map((p) => p.text)
+    .join("")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+  const normalizedWord = word
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z]/g, ""); // Remove any non-letter characters
   const commaSeparatedParts = parts.map((p) => p.text).join(", ");
 
-  if (combinedParts.toLowerCase() !== word.toLowerCase().replaceAll(" ", "")) {
+  if (combinedParts !== normalizedWord) {
     errors.push(
       `The parts "${commaSeparatedParts}" do not combine to form the word "${word}"`
     );
@@ -192,18 +200,72 @@ interface LastAttempt {
   output: WordOutput;
 }
 
+// Add a new route for polling
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const runId = searchParams.get('runId');
+  const word = searchParams.get('word'); // Get word from query params
+
+  if (!runId || !word) {
+    return NextResponse.json({ error: "Run ID and word required" }, { status: 400 });
+  }
+
+  const pollResponse = await fetch(
+    `https://cloud.griptape.ai/api/structure-runs/${runId}`,
+    {
+      headers: {
+        "Authorization": `Bearer ${process.env.GRIPTAPE_CLOUD_API_KEY}`,
+      }
+    }
+  );
+
+  const pollData = await pollResponse.json();
+
+  if (pollData.status === 'SUCCEEDED' && pollData.output?.value) {
+    try {
+      const cleanValue = pollData.output.value
+        .replace(/```json\n/, '')
+        .replace(/\n```$/, '')
+        .trim();
+
+      const result = { object: JSON.parse(cleanValue) };
+
+      const errors: string[] = [
+        ...validateWordParts(word, result.object.parts),
+        ...validateUniqueIds(result.object),
+        ...validateCombinations(word, result.object),
+      ];
+
+      if (errors.length > 0) {
+        console.log("validation errors:", errors);
+        return NextResponse.json(
+          { error: "Validation failed", errors },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json({
+        data: result.object,
+        status: 'Complete'
+      });
+    } catch (e) {
+      console.error("Parse error details:", pollData.output.value);
+      throw new Error(`Failed to parse output: ${e}`);
+    }
+  }
+
+  return NextResponse.json({
+    status: pollData.status,
+    progress: pollData.progress || 0
+  }, { status: 202 });
+}
+
+// Modify POST to only create the run
 export async function POST(req: Request) {
   try {
-    const { word } = await req.json();
+    const { word: rawWord } = await req.json();
+    const word = rawWord.trim().toLowerCase();
 
-    if (!word || typeof word !== "string") {
-      return NextResponse.json(
-        { error: "Word is required and must be a string" },
-        { status: 400 }
-      );
-    }
-
-    // Step 1: Queue the job
     const queueResponse = await fetch(
       "https://cloud.griptape.ai/api/structures/3e8d0dea-4c37-47a3-9f71-1a819bf07a2a/runs",
       {
@@ -213,90 +275,17 @@ export async function POST(req: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          inputs: {
-            word: word.toLowerCase().trim()
-          },
-          args: ["-w", word.toLowerCase().trim()]  // Add explicit args
+          inputs: { word },
+          args: ["-w", word]
         })
       }
     );
 
-    if (!queueResponse.ok) {
-      throw new Error(`Failed to queue job: ${queueResponse.statusText}`);
-    }
-
     const queueData = await queueResponse.json();
-    const runId = queueData.structure_run_id;
-    console.log('Job queued with run ID:', runId);
-
-    // Step 2: Poll for results
-    let attempts = 0;
-    const maxAttempts = 30; // 30 second timeout
-
-    while (attempts < maxAttempts) {
-      const pollResponse = await fetch(
-        `https://cloud.griptape.ai/api/structure-runs/${runId}`,
-        {
-          headers: {
-            "Authorization": `Bearer ${process.env.GRIPTAPE_CLOUD_API_KEY}`,
-          }
-        }
-      );
-
-      if (!pollResponse.ok) {
-        throw new Error(`Failed to poll job: ${pollResponse.statusText}`);
-      }
-
-      const pollData = await pollResponse.json();
-      console.log('Poll response:', pollData);
-
-      if (pollData.status === 'SUCCEEDED' && pollData.output?.value) {
-        try {
-          // Clean the output value of any markdown code block markers
-          const cleanValue = pollData.output.value
-            .replace(/```json\n/, '')  // Remove opening ```json
-            .replace(/\n```$/, '')     // Remove closing ```
-            .trim();                   // Remove any extra whitespace
-
-          // Parse the cleaned JSON string
-          const result = { object: JSON.parse(cleanValue) };
-
-          const errors: string[] = [
-            ...validateWordParts(word, result.object.parts),
-            ...validateUniqueIds(result.object),
-            ...validateCombinations(word, result.object),
-          ];
-
-          if (errors.length > 0) {
-            console.log("validation errors:", errors);
-            return NextResponse.json(
-              { error: "Validation failed", errors },
-              { status: 400 }
-            );
-          }
-
-          return NextResponse.json(result.object);
-        } catch (e) {
-          console.error("Parse error details:", pollData.output.value); // Add this for debugging
-          throw new Error(`Failed to parse output: ${e}`);
-        }
-      }
-
-      if (pollData.status === 'FAILED') {
-        throw new Error(`Job failed: ${pollData.status_detail?.message || 'Unknown error'}`);
-      }
-
-      // Wait 1 second before next poll
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      attempts++;
-    }
-
-    throw new Error('Timeout waiting for job completion');
-
+    return NextResponse.json({ runId: queueData.structure_run_id });
   } catch (error) {
-    console.error("Error generating word deconstruction:", error);
     return NextResponse.json(
-      { error: "Failed to generate word deconstruction" },
+      { error: "Failed to start word deconstruction" },
       { status: 500 }
     );
   }

@@ -1,4 +1,5 @@
 "use client";
+"use client";
 import {
   ReactFlow,
   Background,
@@ -20,6 +21,9 @@ import { atom, useAtom } from "jotai";
 import Spinner from "./spinner";
 import { toast } from "sonner";
 import { usePlausible } from "next-plausible";
+import Modal from "@/components/modal";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const isLoadingAtom = atom(false);
 
@@ -34,9 +38,8 @@ const WordChunkNode = ({ data }: { data: { text: string } }) => {
   const [isLoading] = useAtom(isLoadingAtom);
   return (
     <div
-      className={`flex flex-col items-center transition-all duration-1000 ${
-        isLoading ? "opacity-0 blur-[20px]" : ""
-      }`}
+      className={`flex flex-col items-center transition-all duration-1000 ${isLoading ? "opacity-0 blur-[20px]" : ""
+        }`}
     >
       <div className="text-5xl font-serif mb-1">{data.text}</div>
       <div className="w-full h-3 border border-t-0 border-white" />
@@ -53,9 +56,8 @@ const OriginNode = ({
   const [isLoading] = useAtom(isLoadingAtom);
   return (
     <div
-      className={`flex flex-col items-stretch transition-all duration-1000 ${
-        isLoading ? "opacity-0 blur-[20px]" : ""
-      }`}
+      className={`flex flex-col items-stretch transition-all duration-1000 ${isLoading ? "opacity-0 blur-[20px]" : ""
+        }`}
     >
       <div className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-700/50 min-w-fit max-w-[180px]">
         <div className="flex flex-col items-start">
@@ -80,9 +82,8 @@ const CombinedNode = ({
   const [isLoading] = useAtom(isLoadingAtom);
   return (
     <div
-      className={`flex flex-col items-stretch transition-all duration-1000 ${
-        isLoading ? "opacity-0 blur-[20px]" : ""
-      }`}
+      className={`flex flex-col items-stretch transition-all duration-1000 ${isLoading ? "opacity-0 blur-[20px]" : ""
+        }`}
     >
       <div className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-700/50 min-w-fit max-w-[250px]">
         <div className="flex flex-col items-start">
@@ -101,18 +102,43 @@ const CombinedNode = ({
 const InputNode = ({
   data,
 }: {
-  data: { onSubmit: (word: string) => Promise<void>; initialWord?: string };
+  data: {
+    onSubmit: (word: string) => Promise<void>;
+    initialWord?: string;
+    status?: string;
+    events?: any[];
+  };
 }) => {
   const [word, setWord] = useState(data.initialWord || "");
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
+  const [dots, setDots] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Add pulsing dots effect
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const interval = setInterval(() => {
+      setDots(d => d.length >= 3 ? '' : d + '.');
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isLoading]);
+
+  // Format status text to be capitalized
+  const formatStatus = (status: string) => {
+    if (!status) return '';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() + dots;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!word.trim()) return;
+    const trimmedWord = word.trim();
+    if (!trimmedWord) return;
 
     setIsLoading(true);
     await Promise.all([
-      data.onSubmit(word),
+      data.onSubmit(trimmedWord),
       new Promise((resolve) => setTimeout(resolve, 1000)),
     ]);
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -120,29 +146,33 @@ const InputNode = ({
   };
 
   return (
-    <form
-      className="px-6 py-4 rounded-xl bg-gray-800/80 border border-gray-700/50 shadow-xl flex gap-3"
-      onSubmit={handleSubmit}
-    >
-      <input
-        type="text"
-        value={word}
-        onChange={(e) => setWord(e.target.value)}
-        placeholder="Enter a word..."
-        className="flex-1 px-3 py-2 rounded-lg bg-gray-900/50 border border-gray-700/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-        disabled={isLoading}
-      />
-      <button
-        type="submit"
-        disabled={isLoading}
-        className={`w-[100px] px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 transition-colors flex items-center justify-center ${
-          isLoading ? "cursor-not-allowed" : ""
-        }`}
+    <div className="flex flex-col gap-2">
+      <form
+        className="px-6 py-4 rounded-xl bg-gray-800/80 border border-gray-700/50 shadow-xl flex gap-3"
+        onSubmit={handleSubmit}
       >
-        {isLoading ? <Spinner /> : "Analyze"}
-      </button>
-      {/* <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} /> */}
-    </form>
+        <input
+          type="text"
+          value={word}
+          onChange={(e) => setWord(e.target.value)}
+          placeholder="Enter a word..."
+          className="flex-1 px-3 py-2 rounded-lg bg-gray-900/50 border border-gray-700/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
+          disabled={isLoading}
+        />
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={`w-[100px] px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-black font-medium disabled:opacity-50 transition-colors flex items-center justify-center ${isLoading ? "cursor-not-allowed" : ""}`}
+        >
+          {isLoading ? <Spinner /> : "Analyze"}
+        </button>
+      </form>
+      {isLoading && (
+        <div className="text-sm text-gray-400 text-center">
+          {formatStatus(data.status || "Processing")}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -331,7 +361,9 @@ const defaultDefinition: Definition = {
 function createInitialNodes(
   definition: Definition,
   handleWordSubmit: (word: string) => void,
-  initialWord?: string
+  initialWord?: string,
+  status?: string,
+  events?: any[]
 ) {
   const initialNodes: Node[] = [];
   const initialEdges: Edge[] = [];
@@ -340,7 +372,7 @@ function createInitialNodes(
     id: "input1",
     type: "inputNode",
     position: { x: 0, y: 0 },
-    data: { onSubmit: handleWordSubmit, initialWord },
+    data: { onSubmit: handleWordSubmit, initialWord, status, events },
   });
 
   // Add word parts and their origins
@@ -423,42 +455,68 @@ const nodeTypes = {
 
 function Deconstructor({ word }: { word?: string }) {
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
-
+  const [status, setStatus] = useState<string>("");
+  const [events, setEvents] = useState<any[]>([]);
   const [definition, setDefinition] = useState<Definition>(defaultDefinition);
   const plausible = usePlausible();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const handleWordSubmit = async (word: string) => {
     console.log("handleWordSubmit", word);
     try {
-      const data = await fetch("/api", {
+      // Initial run creation
+      const createResponse = await fetch("/api", {
         method: "POST",
-        body: JSON.stringify({ word }),
-      });
-      if (!data.ok) {
-        throw new Error(await data.text());
-      }
-      if (data.status === 203) {
-        toast.info(
-          "The AI had some issues, but here's what it came up with anyway."
-        );
-      }
-      const newDefinition = (await data.json()) as Definition;
-      console.log("newDefinition", newDefinition);
-      console.log(JSON.stringify(newDefinition, null, 2));
-      plausible("deconstruct", {
-        props: {
-          word,
+        headers: {
+          'Content-Type': 'application/json'
         },
+        body: JSON.stringify({ word: word.trim() }),
       });
 
-      setDefinition(newDefinition);
-    } catch {
-      plausible("deconstruct_error", {
-        props: {
-          word,
-        },
-      });
-      // console.error("Error fetching definition", error);
+      if (!createResponse.ok) {
+        throw new Error(await createResponse.text());
+      }
+
+      const { runId } = await createResponse.json();
+
+      // Poll both endpoints in parallel
+      let polling = true;
+      while (polling) {
+        const [statusResponse, eventsResponse] = await Promise.all([
+          fetch(`/api?runId=${runId}&word=${encodeURIComponent(word)}`),
+          fetch(`/api/events?runId=${runId}`)
+        ]);
+
+        const [statusData, eventsData] = await Promise.all([
+          statusResponse.json(),
+          eventsResponse.json()
+        ]);
+
+        console.log('Events:', eventsData);
+        setStatus(statusData.status);
+        setEvents(eventsData.events || []);
+
+        if (statusResponse.status === 202) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          continue;
+        }
+
+        polling = false;
+
+        if (statusData.data) {
+          setDefinition(statusData.data);
+          plausible("deconstruct", {
+            props: { word },
+          });
+        }
+      }
+    } catch (error) {
+      setStatus("Error");
+      console.error("Error:", error);
       toast.error("The AI doesn't like that one! Try a different word.");
+      plausible("deconstruct_error", {
+        props: { word },
+      });
     }
   };
 
@@ -474,8 +532,8 @@ function Deconstructor({ word }: { word?: string }) {
   }, [word]);
 
   const { initialNodes, initialEdges } = useMemo(
-    () => createInitialNodes(definition, handleWordSubmit, word),
-    [definition, word]
+    () => createInitialNodes(definition, handleWordSubmit, word, status, events),
+    [definition, word, status, events]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -508,17 +566,78 @@ function Deconstructor({ word }: { word?: string }) {
   console.log(nodes);
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      nodeTypes={nodeTypes}
-      className="bg-gray-900"
-      proOptions={{ hideAttribution: true }}
-    >
-      <Background color="#333" />
-    </ReactFlow>
+    <>
+      <div className="fixed top-20 right-4 z-50">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors bg-gray-800/80 rounded-lg border border-gray-700/50"
+        >
+          Observability and Events
+        </button>
+      </div>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <div className="space-y-4">
+          {events.map((event) => (
+            <div
+              key={event.event_id}
+              className="rounded-lg border border-gray-700/50 overflow-hidden"
+            >
+              <div className="px-4 py-2 bg-gray-800/50 border-b border-gray-700/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300">
+                    {event.type} at {new Date(event.created_at).toLocaleTimeString()}
+                  </span>
+                  <span className="text-xs text-gray-500">{event.origin}</span>
+                </div>
+              </div>
+              <div className="px-4 py-3 bg-gray-800/30">
+                <SyntaxHighlighter
+                  language="json"
+                  style={{
+                    ...oneDark,
+                    'pre[class*="language-"]': {
+                      ...oneDark['pre[class*="language-"]'],
+                      background: 'transparent',
+                      margin: 0,
+                      padding: '0.5rem',
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                    },
+                    'code[class*="language-"]': {
+                      ...oneDark['code[class*="language-"]'],
+                      background: 'transparent',
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                    },
+                  }}
+                  customStyle={{
+                    fontSize: '12px',
+                    background: 'transparent',
+                  }}
+                  wrapLines={true}
+                  wrapLongLines={true}
+                >
+                  {JSON.stringify(event.payload, null, 2)}
+                </SyntaxHighlighter>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        className="bg-background"
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background color="#333" />
+      </ReactFlow>
+    </>
   );
 }
 
@@ -527,7 +646,7 @@ export default function WordDeconstructor({ word }: { word?: string }) {
 
   return (
     <div
-      className="h-screen bg-gray-900 text-gray-100"
+      className="h-screen bg-background text-gray-100"
       style={
         { "--loading-state": isLoading ? "1" : "0" } as React.CSSProperties
       }
