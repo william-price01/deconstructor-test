@@ -73,7 +73,9 @@ def setup_config():
         def event_handler(event) -> dict | BaseEvent:
             try:
                 logger.debug(f"Event type: {type(event)}")
-                return event.output_task_output.value.model_dump() if isinstance(event, FinishStructureRunEvent) else event
+                if isinstance(event, FinishStructureRunEvent):
+                    event.output_task_output.value = event.output_task_output.value.model_dump()
+                return event
             except Exception as e:
                 logger.error(f"Event processing failed: {e}")
                 return event
