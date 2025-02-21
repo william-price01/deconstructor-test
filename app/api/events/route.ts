@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Event } from '@/types/events';
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
@@ -17,10 +18,10 @@ export async function GET(req: Request) {
         }
     );
 
-    const eventsData = await eventsResponse.json();
+    const eventsData: { events: Event[] } = await eventsResponse.json();
 
     // Transform the events to include the full payload
-    const events = eventsData.events.map((event: any) => ({
+    const events = eventsData.events.map((event: Event) => ({
         ...event,
         payload: event.payload // This will now include the full payload object
     }));

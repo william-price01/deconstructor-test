@@ -24,6 +24,7 @@ import { usePlausible } from "next-plausible";
 import Modal from "@/components/modal";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Event } from '@/types/events';
 
 const isLoadingAtom = atom(false);
 
@@ -99,7 +100,7 @@ const InputNode = ({
     onSubmit: (word: string) => Promise<void>;
     initialWord?: string;
     status?: string;
-    events?: any[];
+    events?: Event[];
   };
 }) => {
   const [word, setWord] = useState(data.initialWord || "");
@@ -355,7 +356,7 @@ function createInitialNodes(
   handleWordSubmit: (word: string) => void,
   initialWord?: string,
   status?: string,
-  events?: any[]
+  events?: Event[]
 ) {
   const initialNodes: Node[] = [];
   const initialEdges: Edge[] = [];
@@ -448,7 +449,7 @@ const nodeTypes = {
 function Deconstructor({ word }: { word?: string }) {
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
   const [status, setStatus] = useState<string>("");
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [definition, setDefinition] = useState<Definition>(defaultDefinition);
   const plausible = usePlausible();
   const [isModalOpen, setIsModalOpen] = useState(false);
