@@ -64,8 +64,15 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
+        class CustomJSONEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if hasattr(obj, 'model_dump'):
+                    return obj.model_dump()
+                return str(obj)
+
         event_driver = GriptapeCloudEventListenerDriver(
-            api_key=get_listener_api_key()
+            api_key=get_listener_api_key(),
+            json_encoder=CustomJSONEncoder
         )
         EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
     else:
@@ -93,7 +100,7 @@ def create_word_agent() -> Agent:
     )
 
 
-def deconstruct_word(agent: Agent, word: str, previous_attempts: list = None) -> WordOutput:
+def deconstruct_word(agent: Agent, word: str, previous_attempts: list = None) -> dict:
     prompt = f"""Your task is to deconstruct this EXACT word: '{word}'
 Do not analyze any other word. Focus only on '{word}'.
 Break down '{word}' into its etymological components."""
@@ -103,10 +110,11 @@ Break down '{word}' into its etymological components."""
 
     response = agent.run(prompt)
     try:
-        # Convert to dict before returning to ensure JSON serialization works
         output = response.output.value
+        
         if isinstance(output, WordOutput):
-            return output.model_dump()
+            result = output.model_dump()
+            return result
         return output
     except Exception as e:
         raise ValueError(f"Failed to parse agent response: {e}")
