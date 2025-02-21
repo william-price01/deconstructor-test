@@ -98,7 +98,7 @@ Rules are loaded from Griptape Cloud.
 def create_word_agent() -> Agent:
     setup_config()
     ruleset = Ruleset(
-        name="Epidemiology Ruleset",
+        name="Etymology Ruleset",
         ruleset_driver=GriptapeCloudRulesetDriver(
             ruleset_id="f887ffcf-7729-4a10-a685-ba3c3d78b5ef",
             api_key=os.environ.get("GT_CLOUD_API_KEY", "")
