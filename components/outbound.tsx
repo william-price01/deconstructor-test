@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { BookOpenIcon, GithubIcon, HouseIcon, LucideProps, TwitterIcon } from "lucide-react";
+import { CodeIcon, GithubIcon, HouseIcon, LucideProps, TwitterIcon } from "lucide-react";
 import Link from "next/link";
 import { RefAttributes } from "react";
 import DocsSheet from "@/components/docs-sheet";
