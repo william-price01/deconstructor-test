@@ -1,12 +1,6 @@
 import argparse
 import os
 import json
-import logging
-from datetime import datetime
-
-# Set up logging configuration
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 #region Imports
 """
@@ -21,8 +15,8 @@ from griptape.configs import Defaults
 from griptape.configs.drivers import DriversConfig
 from griptape.structures import Agent
 from griptape.rules import Rule
-from griptape.drivers.event_listener.griptape_cloud import GriptapeCloudEventListenerDriver
-from griptape.events import EventBus, EventListener, FinishStructureRunEvent, BaseEvent
+from griptape.drivers import GriptapeCloudEventListenerDriver
+from griptape.events import EventBus, EventListener
 #endregion
 
 #region Data Model
@@ -49,7 +43,6 @@ class WordOutput(BaseModel):
     thought: str = Field(description="Think about the word/phrase, it's origins, and how it's put together")
     parts: List[WordPart] = Field(description="Array of word parts that combine to form the word")
     combinations: List[List[Combination]] = Field(description="Layers of combinations forming a DAG to the final word")
-
 #endregion
 
 #region Environment Setup
@@ -71,31 +64,10 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        def event_handler(event) -> dict | BaseEvent:
-            try:
-                logger.debug(f"Event type: {type(event)}")
-                model = event.output_task_output.value.model_dump() if isinstance(event, FinishStructureRunEvent) else event
-                model["timestamp"] = datetime.now().isoformat()
-                model["type"] = type(event).__name__
-                return model
-            except Exception as e:
-                logger.error(f"Event processing failed: {e}")
-                return event
-
-        event_driver = GriptapeCloudEventListenerDriver(
-            api_key=get_listener_api_key()
-        )
-        
-        event_listener = EventListener(
-            on_event=event_handler,
-            event_listener_driver=event_driver,
-            event_types=[FinishStructureRunEvent]
-        )
-        
-        EventBus.add_event_listener(event_listener)
+        event_driver = GriptapeCloudEventListenerDriver(api_key=get_listener_api_key())
+        EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
     else:
         load_dotenv('../.env.local')
-        
 #endregion
 
 #region Agent Configuration
@@ -105,7 +77,6 @@ Defines rules and behavior for word deconstruction
 """
 def create_word_agent() -> Agent:
     return Agent(
-        output_schema=WordOutput,
         rules=[
             Rule("You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology."),
             Rule("You must ONLY analyze the exact input word provided, never substitute it with a different word."),
@@ -113,8 +84,8 @@ def create_word_agent() -> Agent:
             Rule("The final combination must be the complete input word."),
             Rule("All IDs must be unique across both parts and combinations."),
             Rule("The parts must combine exactly to form the input word."),
-            # Rule("Respond with a JSON object that matches this schema exactly:"),
-            # Rule(json.dumps(WordOutput.model_json_schema(), indent=2))
+            Rule("Respond with a JSON object that matches this schema exactly:"),
+            Rule(json.dumps(WordOutput.model_json_schema(), indent=2))
         ]
     )
 
@@ -129,14 +100,10 @@ Break down '{word}' into its etymological components."""
 
     response = agent.run(prompt)
     try:
-        output = response.output.value
-        
-        if isinstance(output, WordOutput):
-            result = output.model_dump()
-            return result
-        return output
+        response_text = str(response.output)
+        return WordOutput.model_validate_json(response_text)
     except Exception as e:
-        raise ValueError(f"Failed to parse agent response: {e}")
+        raise ValueError(f"Failed to parse agent response as JSON: {e}")
 #endregion
 
 if __name__ == "__main__":
@@ -162,12 +129,11 @@ if __name__ == "__main__":
     try:
         result = deconstruct_word(agent, args.word)
         if args.verbose:
-            print(json.dumps(result, indent=2))
+            print(json.dumps(result.model_dump(), indent=2))
         else:
-            # Handle result as dict now
-            parts = ", ".join(f"{p['text']} ({p['meaning']})" for p in result['parts'])
+            parts = ", ".join(f"{p.text} ({p.meaning})" for p in result.parts)
             print(f"Word: {args.word}")
             print(f"Parts: {parts}")
-            print(f"Definition: {result['combinations'][-1][0]['definition']}")
+            print(f"Definition: {result.combinations[-1][0].definition}")
     except Exception as e:
         print(f"Error deconstructing word: {e}") 
