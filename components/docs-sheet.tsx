@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Spinner from "@/components/spinner";
 import { CodeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ export default function DocsSheet() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env.NEXT_PUBLIC_DOCS_URL!)
+        fetch(process.env.GT_CLOUD_STRUCTURE_SOURCE_URL!)
             .then((res) => res.text())
             .then((text) => {
                 setSections(parseCodeSections(text));
@@ -89,10 +89,11 @@ export default function DocsSheet() {
                 </Button>
             </SheetTrigger>
             <SheetContent>
-                <SheetTitle className="text-lg font-semibold mb-4">
-                    Griptape Agent Code
-                </SheetTitle>
-                <div className="flex flex-col h-[calc(100%-3rem)] overflow-y-auto">
+                <SheetTitle>Griptape Agent Code</SheetTitle>
+                <SheetDescription>
+                    Documentation showing the Griptape agent code structure and implementation
+                </SheetDescription>
+                <div className="flex flex-col h-[calc(100%-3rem)] overflow-y-auto mt-4">
                     {loading ? (
                         <div className="flex items-center justify-center flex-1">
                             <Spinner />

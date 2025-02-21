@@ -13,7 +13,7 @@ export async function GET(req: Request) {
         `https://cloud.griptape.ai/api/structure-runs/${runId}/events`,
         {
             headers: {
-                "Authorization": `Bearer ${process.env.GRIPTAPE_CLOUD_API_KEY}`,
+                "Authorization": `Bearer ${process.env.GT_CLOUD_API_KEY}`,
             }
         }
     );

@@ -570,7 +570,14 @@ function Deconstructor({ word }: { word?: string }) {
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <div className="space-y-4">
+        <div
+          className="space-y-4"
+          role="dialog"
+          aria-describedby="modal-description"
+        >
+          <div id="modal-description" className="sr-only">
+            Event log showing observability data and events from the word deconstruction process
+          </div>
           {events.map((event) => (
             <div
               key={event.event_id}

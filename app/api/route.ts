@@ -214,7 +214,7 @@ export async function GET(req: Request) {
     `https://cloud.griptape.ai/api/structure-runs/${runId}`,
     {
       headers: {
-        "Authorization": `Bearer ${process.env.GRIPTAPE_CLOUD_API_KEY}`,
+        "Authorization": `Bearer ${process.env.GT_CLOUD_API_KEY}`,
       }
     }
   );
@@ -223,12 +223,20 @@ export async function GET(req: Request) {
 
   if (pollData.status === 'SUCCEEDED' && pollData.output?.value) {
     try {
-      const cleanValue = pollData.output.value
-        .replace(/```json\n/, '')
-        .replace(/\n```$/, '')
-        .trim();
+      // Handle both string and object formats
+      let parsedValue;
+      if (typeof pollData.output.value === 'string') {
+        const cleanValue = pollData.output.value
+          .replace(/```json\n/, '')
+          .replace(/\n```$/, '')
+          .trim();
+        parsedValue = JSON.parse(cleanValue);
+      } else {
+        // Already an object from model_dump()
+        parsedValue = pollData.output.value;
+      }
 
-      const result = { object: JSON.parse(cleanValue) };
+      const result = { object: parsedValue };
 
       const errors: string[] = [
         ...validateWordParts(word, result.object.parts),
@@ -268,11 +276,11 @@ export async function POST(req: Request) {
 
     // # "https://cloud.griptape.ai/api/structures/3e8d0dea-4c37-47a3-9f71-1a819bf07a2a/runs",
     const queueResponse = await fetch(
-      "https://cloud.griptape.ai/api/structures/bbf28f66-d458-4f8e-950f-716c7ee65db5/runs",
+      `https://cloud.griptape.ai/api/structures/${process.env.GT_CLOUD_STRUCTURE_ID}/runs`,
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${process.env.GRIPTAPE_CLOUD_API_KEY}`,
+          "Authorization": `Bearer ${process.env.GT_CLOUD_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

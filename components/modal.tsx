@@ -2,6 +2,7 @@ import {
     Sheet,
     SheetContent,
     SheetTitle,
+    SheetDescription,
 } from "@/components/ui/sheet";
 
 export default function Modal({
@@ -16,10 +17,11 @@ export default function Modal({
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent>
-                <SheetTitle className="text-lg font-semibold mb-4">
-                    Events Log
-                </SheetTitle>
-                <div className="flex flex-col h-[calc(100%-3rem)] overflow-y-auto">
+                <SheetTitle>Events Log</SheetTitle>
+                <SheetDescription>
+                    Event log showing observability data and events from the word deconstruction process
+                </SheetDescription>
+                <div className="flex flex-col h-[calc(100%-3rem)] overflow-y-auto mt-4">
                     {children}
                 </div>
             </SheetContent>

@@ -1,21 +1,22 @@
+import argparse
+import os
+import json
+
 #region Imports
 """
 External dependencies and type definitions
 Core libraries for CLI, environment, and data handling
 Griptape framework components for AI agent functionality
 """
-import argparse
-import os
-import json
-from datetime import datetime
 from typing import List
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from griptape.configs import Defaults
+from griptape.configs.drivers import DriversConfig
 from griptape.structures import Agent
-from griptape.drivers import GriptapeCloudRulesetDriver
-from griptape.rules import Ruleset
-from griptape.drivers.event_listener.griptape_cloud import GriptapeCloudEventListenerDriver
-from griptape.events import EventBus, EventListener, FinishStructureRunEvent, FinishTaskEvent, BaseEvent
+from griptape.rules import Rule
+from griptape.drivers import GriptapeCloudEventListenerDriver
+from griptape.events import EventBus, EventListener
 #endregion
 
 #region Data Model
@@ -42,7 +43,6 @@ class WordOutput(BaseModel):
     thought: str = Field(description="Think about the word/phrase, it's origins, and how it's put together")
     parts: List[WordPart] = Field(description="Array of word parts that combine to form the word")
     combinations: List[List[Combination]] = Field(description="Layers of combinations forming a DAG to the final word")
-
 #endregion
 
 #region Environment Setup
@@ -64,26 +64,8 @@ def get_listener_api_key() -> str:
 
 def setup_config():
     if is_running_in_managed_environment():
-        def event_handler(event: BaseEvent):
-            if isinstance(event, FinishStructureRunEvent):
-                if event.output_task_output is not None and isinstance(event.output_task_output.value, BaseModel):
-                    event.output_task_output.value = event.output_task_output.value.model_dump()
-            if isinstance(event, FinishTaskEvent):
-                if event.task_output is not None and isinstance(event.task_output.value, BaseModel):
-                    event.task_output.value = event.task_output.value.model_dump()
-            
-            return event
-
-        event_driver = GriptapeCloudEventListenerDriver(
-            api_key=get_listener_api_key()
-        )
-        
-        event_listener = EventListener(
-            on_event=event_handler,
-            event_listener_driver=event_driver,
-        )
-        
-        EventBus.add_event_listener(event_listener)
+        event_driver = GriptapeCloudEventListenerDriver(api_key=get_listener_api_key())
+        EventBus.add_event_listener(EventListener(event_listener_driver=event_driver))
     else:
         load_dotenv('../.env.local')
 #endregion
@@ -93,20 +75,18 @@ def setup_config():
 Functions for creating and configuring the linguistic analysis agent
 Defines rules and behavior for word deconstruction
 """
-
 def create_word_agent() -> Agent:
-    setup_config()
-    ruleset = Ruleset(
-        name="Epidemiology Ruleset",
-        ruleset_driver=GriptapeCloudRulesetDriver(
-            ruleset_id="f887ffcf-7729-4a10-a685-ba3c3d78b5ef",
-            api_key=os.environ.get("GT_CLOUD_API_KEY", "")
-        ),
-    )
-    
     return Agent(
-        output_schema=WordOutput,
-        rulesets=[ruleset]
+        rules=[
+            Rule("You are a linguistic expert that deconstructs words into their meaningful parts and explains their etymology."),
+            Rule("You must ONLY analyze the exact input word provided, never substitute it with a different word."),
+            Rule("Create multiple layers of combinations to form the final meaning of the word."),
+            Rule("The final combination must be the complete input word."),
+            Rule("All IDs must be unique across both parts and combinations."),
+            Rule("The parts must combine exactly to form the input word."),
+            Rule("Respond with a JSON object that matches this schema exactly:"),
+            Rule(json.dumps(WordOutput.model_json_schema(), indent=2))
+        ]
     )
 
 
@@ -120,14 +100,10 @@ Break down '{word}' into its etymological components."""
 
     response = agent.run(prompt)
     try:
-        output = response.output.value
-        
-        if isinstance(output, WordOutput):
-            result = output.model_dump()
-            return result
-        return output
+        response_text = str(response.output)
+        return WordOutput.model_validate_json(response_text)
     except Exception as e:
-        raise ValueError(f"Failed to parse agent response: {e}")
+        raise ValueError(f"Failed to parse agent response as JSON: {e}")
 #endregion
 
 if __name__ == "__main__":
@@ -153,12 +129,11 @@ if __name__ == "__main__":
     try:
         result = deconstruct_word(agent, args.word)
         if args.verbose:
-            print(json.dumps(result, indent=2))
+            print(json.dumps(result.model_dump(), indent=2))
         else:
-            # Handle result as dict now
-            parts = ", ".join(f"{p['text']} ({p['meaning']})" for p in result['parts'])
+            parts = ", ".join(f"{p.text} ({p.meaning})" for p in result.parts)
             print(f"Word: {args.word}")
             print(f"Parts: {parts}")
-            print(f"Definition: {result['combinations'][-1][0]['definition']}")
+            print(f"Definition: {result.combinations[-1][0].definition}")
     except Exception as e:
         print(f"Error deconstructing word: {e}") 
