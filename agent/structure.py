@@ -100,7 +100,7 @@ def create_word_agent() -> Agent:
     ruleset = Ruleset(
         name="Etymology Ruleset",
         ruleset_driver=GriptapeCloudRulesetDriver(
-            ruleset_id="f887ffcf-7729-4a10-a685-ba3c3d78b5ef",
+            ruleset_id="5d4ac856-0f90-4b92-b26b-e8f67dbaad62",
             api_key=os.environ.get("GT_CLOUD_API_KEY", "")
         ),
     )
