@@ -236,24 +236,8 @@ export async function GET(req: Request) {
         parsedValue = pollData.output.value;
       }
 
-      const result = { object: parsedValue };
-
-      const errors: string[] = [
-        ...validateWordParts(word, result.object.parts),
-        ...validateUniqueIds(result.object),
-        ...validateCombinations(word, result.object),
-      ];
-
-      if (errors.length > 0) {
-        console.log("validation errors:", errors);
-        return NextResponse.json(
-          { error: "Validation failed", errors },
-          { status: 400 }
-        );
-      }
-
       return NextResponse.json({
-        data: result.object,
+        data: parsedValue,
         status: 'Complete'
       });
     } catch (e) {
